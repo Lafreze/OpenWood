@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Doge Matrix Fixed</title>
+
+<style>
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+    background:
+      radial-gradient(circle at center, rgba(255, 190, 70, 0.18), transparent 35%),
+      linear-gradient(135deg, #050301, #1c1004 45%, #3a2108);
+    font-family: "Courier New", Consolas, Menlo, Monaco, monospace;
+  }
+
+  canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .stage {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 24px;
+  }
+
+  .panel {
+    position: relative;
+    padding: 36px 44px;
+    border-radius: 30px;
+    background: rgba(20, 10, 2, 0.76);
+    border: 1px solid rgba(255, 205, 90, 0.5);
+    box-shadow:
+      0 0 50px rgba(255, 170, 40, 0.35),
+      inset 0 0 45px rgba(255, 210, 110, 0.12);
+    backdrop-filter: blur(10px);
+    animation: panelIn 1.2s ease forwards;
+  }
+
+  @keyframes panelIn {
+    from {
+      opacity: 0;
+      transform: translateY(28px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .title {
+    text-align: center;
+    color: #ffe59a;
+    font-size: 36px;
+    font-weight: 900;
+    margin-bottom: 28px;
+    text-shadow:
+      0 0 8px #ffb703,
+      0 0 20px #ff8500,
+      0 0 40px #ff5400;
+  }
+
+  .doge-wrap {
+    display: flex;
+    justify-content: center;
+    overflow-x: auto;
+  }
+
+  pre {
+    margin: 0;
+    color: #ffc857;
+
+    /*
+      关键：
+      1. 固定等宽字体
+      2. 固定字号
+      3. 固定行高
+      4. 禁止额外字距
+      这样 doge 不容易变形
+    */
+    font-family: "Courier New", Consolas, Menlo, Monaco, monospace;
+    font-size: 16px;
+    line-height: 16px;
+    letter-spacing: 0;
+    white-space: pre;
+    font-variant-ligatures: none;
+    text-rendering: geometricPrecision;
+
+    text-shadow:
+      0 0 6px rgba(255, 195, 80, 0.95),
+      0 0 18px rgba(255, 135, 20, 0.75);
+
+    opacity: 0;
+    filter: blur(8px);
+    transition:
+      opacity 1.2s ease,
+      filter 1.2s ease;
+  }
+
+  pre.show {
+    opacity: 1;
+    filter: blur(0);
+  }
+
+  pre.flash {
+    animation: goldenFlash 1.6s ease-in-out infinite alternate;
+  }
+
+  @keyframes goldenFlash {
+    from {
+      text-shadow:
+        0 0 6px rgba(255, 195, 80, 0.9),
+        0 0 18px rgba(255, 135, 20, 0.7);
+      filter: brightness(1);
+    }
+    to {
+      text-shadow:
+        0 0 12px rgba(255, 240, 170, 1),
+        0 0 28px rgba(255, 190, 40, 1),
+        0 0 55px rgba(255, 110, 10, 0.9);
+      filter: brightness(1.35);
+    }
+  }
+
+  .status {
+    text-align: center;
+    margin-top: 22px;
+    color: #fff0b3;
+    font-size: 18px;
+    min-height: 26px;
+    text-shadow: 0 0 10px #ff9f1c;
+  }
+
+  .floating-word {
+    position: fixed;
+    z-index: 3;
+    pointer-events: none;
+    color: #fff4bd;
+    font-weight: 900;
+    text-shadow:
+      0 0 10px #ffb703,
+      0 0 25px #fb8500;
+    animation: floatAway 2.2s ease forwards;
+  }
+
+  @keyframes floatAway {
+    0% {
+      opacity: 0;
+      transform: translateY(20px) scale(0.8) rotate(-8deg);
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-90px) scale(1.25) rotate(8deg);
+    }
+  }
+
+  @media (max-width: 720px) {
+    .panel {
+      padding: 26px 18px;
+      width: 100%;
+    }
+
+    .title {
+      font-size: 26px;
+    }
+
+    pre {
+      font-size: 12px;
+      line-height: 12px;
+    }
+  }
+</style>
+</head>
+
+<body>
+
+<canvas id="matrix"></canvas>
+
+<div class="stage">
+  <div class="panel">
+    <div class="title">DOGE SYSTEM ONLINE</div>
+
+    <div class="doge-wrap">
+      <pre id="doge"></pre>
+    </div>
+
+    <div class="status" id="status">loading matrix...</div>
+  </div>
+</div>
+
+<script>
+  const dogeArt = String.raw`
+              ▄              ▄
+             ▌▒█           ▄▀▒▌
+             ▌▒▒█        ▄▀▒▒▒▐
+            ▐▄▀▒▒▀▀▀▀▄▄▄▀▒▒▒▒▒▐
+          ▄▄▀▒░▒▒▒▒▒▒▒▒▒█▒▒▄█▒▐
+        ▄▀▒▒▒░░░▒▒▒░░░▒▒▒▀██▀▒▌
+       ▐▒▒▒▄▄▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▀▄▒▒▌
+       ▌░░▌█▀▒▒▒▒▒▄▀█▄▒▒▒▒▒▒▒█▒▐
+      ▐░░░▒▒▒▒▒▒▒▒▌██▀▒▒░░░▒▒▒▀▄▌
+      ▌░▒▄██▄▒▒▒▒▒▒▒▒▒░░░░░░▒▒▒▒▌
+      ▌▒▀▐▄█▄█▌▄▒▀▒▒░░░░░░░░░░▒▒▐
+      ▐▒▒▐▀▐▀▒▒▄▄▒▄▒░░░░░░░░░░▒▒▌
+       ▌▒▒▀▄▄▄▄▄▄▀▒░░░░░░░░░░▒▒▒▐
+       ▐▒▒▒▒▒▒▒▒▒▒▒░░░░░░░░░▒▒▒▒▌
+        ▌▒▒▒▒▒▒▒▒▒▒░░░░░░░▒▒▒▒▒▐
+        ▐▒▒▒▒▒▒▒▒▒▒░░░░░▒▒▒▒▒▒▒▌
+         ▌▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▐
+         ▐▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▌
+
+              WOW      SUCH DOGE
+          MUCH CHARACTER     VERY HTML
+                SO LEGENDARY
+`;
+
+  const canvas = document.getElementById("matrix");
+  const ctx = canvas.getContext("2d");
+  const doge = document.getElementById("doge");
+  const statusText = document.getElementById("status");
+
+  let width;
+  let height;
+  let columns;
+  let drops;
+
+  const chars = "D0G3WOWSUCHVERYHTML▒░█▌▐▄▀0123456789";
+  const matrixFontSize = 18;
+
+  function resizeCanvas() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    columns = Math.floor(width / matrixFontSize);
+    drops = Array(columns).fill(1);
+  }
+
+  window.addEventListener("resize", resizeCanvas);
+  resizeCanvas();
+
+  function drawMatrix() {
+    ctx.fillStyle = "rgba(5, 3, 1, 0.12)";
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.fillStyle = "#ffbf47";
+    ctx.font = matrixFontSize + "px Courier New";
+
+    for (let i = 0; i < drops.length; i++) {
+      const text = chars[Math.floor(Math.random() * chars.length)];
+      const x = i * matrixFontSize;
+      const y = drops[i] * matrixFontSize;
+
+      ctx.fillText(text, x, y);
+
+      if (y > height && Math.random() > 0.975) {
+        drops[i] = 0;
+      }
+
+      drops[i]++;
+    }
+  }
+
+  const matrixTimer = setInterval(drawMatrix, 38);
+
+  function typeDoge() {
+    doge.classList.add("show");
+    doge.textContent = "";
+
+    let index = 0;
+
+    const timer = setInterval(() => {
+      doge.textContent += dogeArt[index];
+      index++;
+
+      if (index % 70 === 0) {
+        const progress = Math.floor(index / dogeArt.length * 100);
+        statusText.textContent = "assembling doge... " + progress + "%";
+      }
+
+      if (index >= dogeArt.length) {
+        clearInterval(timer);
+        statusText.textContent = "complete. such wow.";
+        doge.classList.add("flash");
+        launchWords();
+      }
+    }, 5);
+  }
+
+  function launchWords() {
+    const words = ["WOW", "MUCH HTML", "VERY DOGE", "SUCH CODE", "SO LEGENDARY"];
+
+    setInterval(() => {
+      const word = document.createElement("div");
+      word.className = "floating-word";
+      word.textContent = words[Math.floor(Math.random() * words.length)];
+
+      word.style.left = Math.random() * 80 + 10 + "vw";
+      word.style.top = Math.random() * 70 + 15 + "vh";
+      word.style.fontSize = Math.random() * 22 + 20 + "px";
+
+      document.body.appendChild(word);
+
+      setTimeout(() => {
+        word.remove();
+      }, 2300);
+    }, 650);
+  }
+
+  setTimeout(() => {
+    statusText.textContent = "characters locking...";
+  }, 1400);
+
+  setTimeout(() => {
+    statusText.textContent = "doge detected.";
+    typeDoge();
+  }, 2600);
+</script>
+
+</body>
+</html>
