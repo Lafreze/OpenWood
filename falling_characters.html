@@ -188,18 +188,18 @@ small {font-size:11px;color:#d99ec0;}
 <body>
 <canvas id="canvas"></canvas>
 <button id="panelToggle" title="Ctrl+H">☰ 面板</button>
-<div id="authorBadge">✧ by satoriscarlet ✧</div>
+<div id="authorBadge" title="✨">✦ satoriscarlet ✦</div>
 
 <div class="panel">
   <h1>✿ Falling Characters v4</h1>
   <div class="author-tag">by <strong>satoriscarlet</strong></div>
 
   <div class="preset-row">
-    <button data-preset="romantic">💗 浪漫</button>
-    <button data-preset="sakura">🌸 樱花</button>
+    <button data-preset="romantic">✦ 微光</button>
+    <button data-preset="sakura">✿ 落英</button>
     <button data-preset="starry">✨ 星河</button>
-    <button data-preset="classic">🟢 经典</button>
-    <button data-preset="aurora">🌈 极光</button>
+    <button data-preset="classic">■ 经典</button>
+    <button data-preset="aurora">◈ 极光</button>
   </div>
 
   <div id="currentWord">当前单词: <em>(空)</em></div>
@@ -212,9 +212,9 @@ small {font-size:11px;color:#d99ec0;}
   <label>FPS<input id="fps" type="number" min="5" value="60"></label>
   <label>颜色模式
     <select id="colorMode">
-      <option value="romantic">romantic ♥</option>
-      <option value="sakura">sakura 🌸</option>
-      <option value="aurora">aurora 🌈</option>
+      <option value="romantic">dream ✦</option>
+      <option value="sakura">petal ✿</option>
+      <option value="aurora">aurora ◈</option>
       <option value="green">green</option>
       <option value="rainbow">rainbow</option>
       <option value="heat">heat</option>
@@ -352,7 +352,7 @@ small {font-size:11px;color:#d99ec0;}
   </label>
   <label>心形爆散
     <select id="explodeHeartShape">
-      <option value="on">on ♥</option>
+      <option value="on">on</option>
       <option value="off">off</option>
     </select>
   </label>
@@ -503,6 +503,8 @@ let recentInputsArr=[];
 let recentLimitVal=parseInt(refs.recentLimit.value,10);
 let currentWordBuffer="";
 let words=[];let nextWordId=1;
+const wordsById=new Map(); // O(1) wordId -> WordGroup 查找
+const MAX_WORDS_KEEP=200; // 限制 words 数组长度避免无限增长
 const palette=['#ff6bb5','#ff9ec7','#ffb3d9','#ff80b3','#e066a3','#c14a8c','#ffd1dc','#ffc0cb','#ff85c1','#d966ff','#b266ff','#ffafd0'];
 let paletteIndex=0;
 let charColorMap=new Map();
@@ -658,6 +660,12 @@ function commitCurrentWord(){
   const wordColor=pickWordColor();
   const wordObj=new WordGroup(nextWordId++, text, wordColor, refs.pathType.value, subType);
   words.push(wordObj);
+  wordsById.set(wordObj.id, wordObj);
+  // 修剪过旧的 words（保留最近 MAX_WORDS_KEEP 个）
+  if(words.length>MAX_WORDS_KEEP){
+    const removed=words.splice(0, words.length-MAX_WORDS_KEEP);
+    for(const w of removed) wordsById.delete(w.id);
+  }
   renderWordsList();
   currentWordBuffer="";
   updateCurrentWordDisplay();
@@ -940,7 +948,7 @@ function handleNormalWordExplosion(){
 
 /* ========= 爆散 ========= */
 function explodeWord(wordId){
-  const word=words.find(w=>w.id===wordId);
+  const word=wordsById.get(wordId);
   if(!word) return;
   const letters=drops.filter(d=>d.wordId===wordId && (d.isPathWord||d.isNormalWordChar));
   if(!letters.length) return;
@@ -1034,7 +1042,7 @@ function updateParticles(dt){
 function pickColor(mode,drop,layerIndex,yPos){
   if(drop.colorOverride) return drop.colorOverride;
   if(mode==='wordcolor' && drop.wordId!=null){
-    const w=words.find(w=>w.id===drop.wordId);
+    const w=wordsById.get(drop.wordId);
     if(w){
       const alpha=Math.max(.18,1-layerIndex/(drop.trailLength+0.5));
       return hexToRgba(w.color,alpha);
@@ -1118,7 +1126,14 @@ function needGlowForParticle(p){
 }
 
 /* ========= 统计 ========= */
-function updateCharStats(ch){statsCharCounts.set(ch,(statsCharCounts.get(ch)||0)+1);}
+function updateCharStats(ch){
+  statsCharCounts.set(ch,(statsCharCounts.get(ch)||0)+1);
+  // 限制 Map 大小避免增长过多
+  if(statsCharCounts.size>500){
+    const firstKey=statsCharCounts.keys().next().value;
+    statsCharCounts.delete(firstKey);
+  }
+}
 function renderCharCounts(){
   const arr=[...statsCharCounts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,150);
   charCountsDiv.innerHTML=arr.map(([c,n])=>`<div class="stat-line"><span>${escapeHtml(c)}</span><span>${n}</span></div>`).join('')||'<em>无</em>';
@@ -1217,11 +1232,23 @@ function stepSimulation(dt){
 }
 
 /* ========= 渲染 ========= */
+let cachedFadeAlpha = 0.14;
+let cachedFontStr = '';
+function refreshFontCache(){
+  cachedFontStr = `${fontSizeVal}px "Consolas","Courier New","Microsoft YaHei",monospace`;
+}
+refreshFontCache();
+// 每秒刷新一次 fade-alpha（CSS 变量不会频繁变动）
+setInterval(()=>{
+  const v=parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fade-alpha'));
+  if(!isNaN(v)) cachedFadeAlpha=v;
+},1000);
+
 function renderFrame(){
   const mode=refs.colorMode.value;
   modeText.textContent=mode;
   if(refs.trailMode.value==='fade'){
-    ctx.fillStyle=`rgba(0,0,0,${getComputedStyle(document.documentElement).getPropertyValue('--fade-alpha')})`;
+    ctx.fillStyle=`rgba(0,0,0,${cachedFadeAlpha})`;
     ctx.fillRect(0,0,width,height);
   } else {
     ctx.clearRect(0,0,width,height);
@@ -1229,28 +1256,32 @@ function renderFrame(){
 
   ctx.save();
   ctx.globalCompositeOperation=refs.blendMode.value;
+  ctx.font=cachedFontStr;
+  const glowColorVal=refs.glowColor.value;
+  const glowStrengthVal=parseInt(refs.glowStrength.value,10);
   // 背景樱花 (在 drops 之前渲染)
   renderSakura();
+  ctx.font=cachedFontStr; // renderSakura 可能改了 font
   // drops
   for(const d of drops){
     const hist=d.history;
-    for(let i=0;i<hist.length;i++){
+    const histLen=hist.length;
+    const needGlow=needGlowForDrop(d);
+    for(let i=0;i<histLen;i++){
       const yPos=hist[i];
       if(yPos<-fontSizeVal || yPos>height) continue;
-      const layerIndex=hist.length-1-i;
+      const layerIndex=histLen-1-i;
       const color=pickColor(mode,d,layerIndex,yPos);
-      const glow=needGlowForDrop(d) && layerIndex===0;
+      const glow=needGlow && layerIndex===0;
       if(glow){
         ctx.save();
-        ctx.shadowColor=refs.glowColor.value;
-        ctx.shadowBlur=parseInt(refs.glowStrength.value,10);
+        ctx.shadowColor=glowColorVal;
+        ctx.shadowBlur=glowStrengthVal;
         ctx.fillStyle=color;
-        ctx.font=`${fontSizeVal}px "Consolas","Courier New","Microsoft YaHei",monospace`;
         ctx.fillText(d.char,d.x,yPos);
         ctx.restore();
       } else {
         ctx.fillStyle=color;
-        ctx.font=`${fontSizeVal}px "Consolas","Courier New","Microsoft YaHei",monospace`;
         ctx.fillText(d.char,d.x,yPos);
       }
     }
@@ -1331,12 +1362,12 @@ window.addEventListener('keydown',e=>{
 /* ========= 控件事件 ========= */
 refs.applyCharset.addEventListener('click',()=>{charSet=refs.charsetInput.value||'0123456789ABCDEF';});
 refs.clearStats.addEventListener('click',()=>{
-  statsCharCounts.clear();recentInputsArr=[];words=[];currentWordBuffer="";
+  statsCharCounts.clear();recentInputsArr=[];words=[];wordsById.clear();currentWordBuffer="";
   pathMetas.clear();bezierCurves.clear();particles=[];flashes=[];
   updateCurrentWordDisplay();renderCharCounts();renderRecentInputs();renderWordsList();
   paletteIndex=0;
 });
-refs.fontSize.addEventListener('change',()=>{fontSizeVal=parseInt(refs.fontSize.value,10);resizeCanvas();});
+refs.fontSize.addEventListener('change',()=>{fontSizeVal=parseInt(refs.fontSize.value,10);resizeCanvas();refreshFontCache();});
 refs.fps.addEventListener('change',updateFrameInterval);
 
 [
@@ -1388,7 +1419,7 @@ applyBgStyle(refs.bgStyle.value);
 /* ========= 预设 ========= */
 const presets={
   romantic:{colorMode:'romantic',bgStyle:'romantic',sakuraEnabled:'on',pathType:'random',
-    charsetInput:'♥♡❤✯✨❀❁✧❅❆LOVE',glowEnabled:'on',glowColor:'#ff80b3',
+    charsetInput:'✦✧✨✩✪✫✬✭✮✯✰❀❁❃',glowEnabled:'on',glowColor:'#ff80b3',
     blendMode:'lighter',explodeHeartShape:'on',snakeAmp:'70',explodeEnabled:'on'},
   sakura:{colorMode:'sakura',bgStyle:'sunset',sakuraEnabled:'on',pathType:'sine',
     charsetInput:'❀❁✯✧✨✳✴✵✶',glowEnabled:'on',glowColor:'#ffb3d9',blendMode:'lighter',
@@ -1447,6 +1478,99 @@ setInterval(()=>{
   renderRecentInputs();
   renderWordsList();
 },1000);
+
+/* ========= 隐藏彩蛋 ========= */
+// 通用：在某个屏幕坐标制造一次绚丽爆散
+function eggBurst(cx, cy, count=80, opts={}){
+  const now=performance.now();
+  const speed = opts.speed || 380;
+  const life  = opts.life  || 1600;
+  const size  = opts.size  || 22;
+  const chars = opts.chars || ['✦','✧','✨','✩','✪','❀','❁','✯','✰','·'];
+  const colors= opts.colors|| palette;
+  const heart = !!opts.heart;
+  flashes.push(new Flash(cx, cy, size*6, 320, now, colors[0]));
+  for(let i=0;i<count;i++){
+    let vx,vy;
+    if(heart){
+      const t=Math.random()*Math.PI*2;
+      const hx=16*Math.pow(Math.sin(t),3);
+      const hy=-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t));
+      const scale=speed/16*(0.5+Math.random()*0.6);
+      vx=hx*scale; vy=hy*scale-speed*0.1;
+    } else {
+      const ang=Math.random()*Math.PI*2;
+      const r=Math.pow(Math.random(),0.5);
+      vx=Math.cos(ang)*speed*r;
+      vy=Math.sin(ang)*speed*r-speed*0.2;
+    }
+    const ch=chars[Math.floor(Math.random()*chars.length)];
+    const col=colors[Math.floor(Math.random()*colors.length)];
+    particles.push(new Particle(cx,cy,vx,vy,life,now,ch,col,size,0.6));
+  }
+}
+
+// 彩蛋 1：双击 canvas → 当前位置烟花
+canvas.addEventListener('dblclick',e=>{
+  eggBurst(e.clientX, e.clientY, 60);
+});
+
+// 彩蛋 2：作者徽章连点 7 次 → 满屏星雨
+let badgeClicks=0, badgeTimer=null;
+const authorBadgeEl=document.getElementById('authorBadge');
+authorBadgeEl.style.pointerEvents='auto';
+authorBadgeEl.style.cursor='pointer';
+authorBadgeEl.addEventListener('click',()=>{
+  badgeClicks++;
+  clearTimeout(badgeTimer);
+  badgeTimer=setTimeout(()=>badgeClicks=0,1200);
+  if(badgeClicks>=7){
+    badgeClicks=0;
+    for(let i=0;i<12;i++){
+      setTimeout(()=>{
+        eggBurst(Math.random()*width, Math.random()*height*0.7+40, 50,
+          {chars:['✦','✧','✨','✩','✪','✫','✬','✭','✮'], heart:false});
+      }, i*120);
+    }
+  }
+});
+
+// 彩蛋 3：按下顺序输入 'satori' → 心形烟花
+let secretBuf='';
+const SECRETS={
+  'satori': ()=>eggBurst(width/2, height/2, 140, {heart:true, chars:['✦','✧','✨','❀','❁','·','°']}),
+  'sakura': ()=>{ for(let i=0;i<60;i++) spawnSakura(); },
+  'star':   ()=>eggBurst(width/2, height*0.35, 100, {chars:['★','☆','✦','✧','✩','✪']})
+};
+window.addEventListener('keydown',e=>{
+  if(document.activeElement.tagName==='INPUT') return;
+  if(e.key.length!==1) return;
+  secretBuf=(secretBuf+e.key.toLowerCase()).slice(-12);
+  for(const k in SECRETS){
+    if(secretBuf.endsWith(k)){ SECRETS[k](); secretBuf=''; break; }
+  }
+});
+
+// 彩蛋 4：Konami 码 ↑↑↓↓←→←→BA → 屏幕烟花秀
+const KONAMI=['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+let konamiIdx=0;
+window.addEventListener('keydown',e=>{
+  const k=e.key.length===1?e.key.toLowerCase():e.key;
+  if(k===KONAMI[konamiIdx]){
+    konamiIdx++;
+    if(konamiIdx===KONAMI.length){
+      konamiIdx=0;
+      for(let i=0;i<20;i++){
+        setTimeout(()=>{
+          eggBurst(Math.random()*width, Math.random()*height*0.8+20, 80,
+            {speed:480, life:2000, chars:['✦','✨','✩','✪','★','❀']});
+        }, i*100);
+      }
+    }
+  } else {
+    konamiIdx = (k===KONAMI[0])?1:0;
+  }
+});
 
 /* ========= 初始化 ========= */
 updateCurrentWordDisplay();
