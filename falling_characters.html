@@ -203,7 +203,7 @@ small {font-size:11px;color:#d99ec0;}
   </div>
 
   <div id="currentWord">当前单词: <em>(空)</em></div>
-  <div class="mode-indicator">颜色模式: <span id="modeText">romantic</span></div>
+  <div class="mode-indicator">颜色模式: <span id="modeText">dream ✦</span></div>
 
   <details open>
     <summary>基础</summary>
@@ -212,7 +212,7 @@ small {font-size:11px;color:#d99ec0;}
   <label>FPS<input id="fps" type="number" min="5" value="60"></label>
   <label>颜色模式
     <select id="colorMode">
-      <option value="romantic">dream ✦</option>
+      <option value="dream">dream ✦</option>
       <option value="sakura">petal ✿</option>
       <option value="aurora">aurora ◈</option>
       <option value="green">green</option>
@@ -1049,7 +1049,7 @@ function pickColor(mode,drop,layerIndex,yPos){
     }
   }
   switch(mode){
-    case 'romantic': {
+    case 'dream': {
       const alpha=Math.max(.18,1-layerIndex/(drop.trailLength+0.5));
       const ratio = yPos/height;
       const hue = lerp(330, 290, ratio); // 粉红 -> 紫
@@ -1418,7 +1418,7 @@ applyBgStyle(refs.bgStyle.value);
 
 /* ========= 预设 ========= */
 const presets={
-  romantic:{colorMode:'romantic',bgStyle:'romantic',sakuraEnabled:'on',pathType:'random',
+  romantic:{colorMode:'dream',bgStyle:'romantic',sakuraEnabled:'on',pathType:'random',
     charsetInput:'✦✧✨✩✪✫✬✭✮✯✰❀❁❃',glowEnabled:'on',glowColor:'#ff80b3',
     blendMode:'lighter',explodeHeartShape:'on',snakeAmp:'70',explodeEnabled:'on'},
   sakura:{colorMode:'sakura',bgStyle:'sunset',sakuraEnabled:'on',pathType:'sine',
