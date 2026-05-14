@@ -1,0 +1,1230 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<title>Falling Characters 随机多路径版 v3</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<style>
+:root {
+  --bg-color:#000;
+  --fade-alpha:0.14;
+  --panel-bg:rgba(0,0,0,0.55);
+  --panel-border:#1f3d2f;
+  --accent:#9ef4c4;
+  --accent2:#70d8a8;
+}
+html,body {
+  margin:0;
+  background:var(--bg-color);
+  font-family:"Consolas","Courier New","Microsoft YaHei",monospace;
+  color:#d9ffe9;
+  overflow:hidden;
+}
+#canvas {position:fixed;inset:0;display:block;}
+.panel {
+  position:fixed;top:8px;left:8px;z-index:20;
+  background:var(--panel-bg);
+  border:1px solid var(--panel-border);
+  border-radius:8px;
+  padding:10px 14px 12px;
+  font-size:12px;line-height:1.35;
+  max-width:390px;
+  backdrop-filter:blur(4px);
+  box-shadow:0 0 4px rgba(0,0,0,.6);
+  transition: opacity 0.3s ease;
+}
+.panel.panel--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.panel h1 {margin:0 0 6px;font-size:15px;letter-spacing:.6px;color:var(--accent);}
+.panel h2 {margin:10px 0 4px;font-size:13px;color:var(--accent2);border-bottom:1px solid #214a38;padding-bottom:2px;}
+.panel label {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:6px;
+  margin:2px 0;
+}
+.panel input[type=number],
+.panel input[type=text],
+.panel select,
+.panel input[type=color] {
+  background:#0d261a;
+  color:#d8ffe9;
+  border:1px solid #285c42;
+  border-radius:4px;
+  padding:2px 4px;
+  font-size:12px;
+  outline:none;
+  width:118px;
+}
+.panel button {
+  background:#134d33;
+  color:#c2ffe2;
+  border:1px solid #2b7a57;
+  border-radius:4px;
+  padding:4px 8px;
+  cursor:pointer;
+  font-size:12px;
+  margin:3px 3px 0 0;
+}
+.panel button:hover {background:#186640;}
+.separator {border-top:1px solid #214a38;margin:6px 0;}
+small {font-size:11px;color:#8bc9aa;}
+#info-line {font-size:11px;color:#8bc9aa;margin-top:4px;}
+#currentWord {
+  font-size:12px;
+  margin-top:4px;
+  color:#e0ffd2;
+  background:#173d2a;
+  padding:3px 6px;
+  border-radius:4px;
+  border:1px solid #2d6a51;
+}
+.mode-indicator {font-size:11px;color:#b2e9cf;margin-top:4px;}
+#statsBox {
+  max-height:200px;
+  overflow:auto;
+  padding:6px;
+  background:#071710;
+  border:1px solid #1e3b2d;
+  border-radius:6px;
+  font-size:11px;
+}
+#statsBox::-webkit-scrollbar {width:8px;}
+#statsBox::-webkit-scrollbar-thumb {background:#2d5d49;border-radius:4px;}
+.stat-line {display:flex;justify-content:space-between;}
+.recent-char {
+  background:#204f38;
+  border:1px solid #347a5d;
+  border-radius:3px;
+  padding:1px 4px;
+  font-size:10px;
+  margin:2px 2px 0 0;
+}
+.word-color-chip {
+  width:12px;height:12px;border-radius:2px;
+  display:inline-block;margin-right:4px;
+  vertical-align:middle;border:1px solid #fff2;
+}
+#wordsList {display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.word-item {
+  background:#123626;
+  border:1px solid #275743;
+  padding:2px 6px;
+  border-radius:4px;
+  font-size:10px;
+  max-width:100%;
+  word-break:break-all;
+}
+.flex-row {display:flex;flex-wrap:wrap;gap:4px;}
+.subgrid {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:2px 6px;
+  margin-top:4px;
+  font-size:11px;
+}
+.subgrid label {
+  margin:0;
+  gap:4px;
+  justify-content:flex-start;
+}
+.inline-note {font-size:10px;color:#7cbfa1;margin-top:2px;}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+
+<div class="panel">
+  <h1>Falling Characters 多路径 v3</h1>
+
+  <h2>基础</h2>
+  <label>密度<input id="density" type="number" step="0.05" value="0.55"></label>
+  <label>字大小<input id="fontSize" type="number" min="10" max="64" value="18"></label>
+  <label>FPS<input id="fps" type="number" min="5" value="60"></label>
+  <label>颜色模式
+    <select id="colorMode">
+      <option value="green">green</option>
+      <option value="rainbow">rainbow</option>
+      <option value="heat">heat</option>
+      <option value="mono">mono</option>
+      <option value="char-map">char-map</option>
+      <option value="wordcolor">wordcolor</option>
+    </select>
+  </label>
+  <label>最大Drops<input id="maxDrops" type="number" value="600"></label>
+  <label>尾迹最短<input id="trailMin" type="number" value="4"></label>
+  <label>尾迹最长<input id="trailMax" type="number" value="9"></label>
+
+  <div class="separator"></div>
+  <h2>重力/速度</h2>
+  <label>初速最小<input id="minV" type="number" step="5" value="30"></label>
+  <label>初速最大<input id="maxV" type="number" step="5" value="180"></label>
+  <label>重力 g<input id="gravity" type="number" step="10" value="160"></label>
+  <label>加速系数<input id="speedFactor" type="number" step="0.1" value="1.0"></label>
+
+  <div class="separator"></div>
+  <h2>输入/单词</h2>
+  <label style="flex-direction:column;align-items:flex-start">
+    初始字符集
+    <input id="charsetInput" type="text" value="雨水风云电闪雷鸣春夏秋冬天地人和美丽世界ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789">
+  </label>
+  <label>最近输入长度<input id="recentLimit" type="number" value="30"></label>
+  <div class="flex-row">
+    <button id="applyCharset">应用字符集</button>
+    <button id="clearStats">清空统计</button>
+  </div>
+
+  <div class="separator"></div>
+  <h2>路径类型</h2>
+  <label>pathType
+    <select id="pathType">
+      <option value="sine">sine</option>
+      <option value="bezier">bezier</option>
+      <option value="random">random</option>
+      <option value="multibezier">multibezier</option>
+      <option value="spiral">spiral</option>
+      <option value="noise">noise</option>
+      <option value="zigzag">zigzag</option>
+    </select>
+  </label>
+  <label>振幅/通用A<input id="snakeAmp" type="number" value="60"></label>
+  <label>频率 freq<input id="snakeFreq" type="number" step="0.1" value="0.8"></label>
+  <label>进度速/相位<input id="snakePhaseSpeed" type="number" step="0.1" value="1.2"></label>
+  <label>相位差 Δφ<input id="snakePhaseOffset" type="number" step="0.1" value="0.6"></label>
+  <div class="inline-note">random 会从下方“随机池”勾选子类型里选一个</div>
+
+  <div class="separator"></div>
+  <h2>Bezier / MultiBezier</h2>
+  <label>Ctrl1X(0-1)<input id="bCtrl1X" type="number" step="0.05" value="0.25"></label>
+  <label>Ctrl2X(0-1)<input id="bCtrl2X" type="number" step="0.05" value="0.75"></label>
+  <label>Ctrl随机<input id="bCtrlRand" type="number" step="5" value="80"></label>
+  <label>Multi段数<input id="segmentCount" type="number" value="3"></label>
+
+  <div class="separator"></div>
+  <h2>Spiral / Noise / Zigzag</h2>
+  <label>旋转圈数<input id="spiralTurns" type="number" step="0.5" value="3"></label>
+  <label>螺旋半径<input id="spiralRadius" type="number" value="140"></label>
+  <label>Noise幅度<input id="noiseAmp" type="number" value="90"></label>
+  <label>Noise频率<input id="noiseFreq" type="number" step="0.1" value="1.1"></label>
+  <label>Zig宽度<input id="zigzagWidth" type="number" value="120"></label>
+  <label>Zag密度<input id="zagPerHeight" type="number" step="0.1" value="2.5"></label>
+
+  <div class="separator"></div>
+  <h2>随机子路径池</h2>
+  <div class="subgrid" id="randomPool">
+    <label><input type="checkbox" data-subpath value="sine" checked> sine</label>
+    <label><input type="checkbox" data-subpath value="bezier" checked> bezier</label>
+    <label><input type="checkbox" data-subpath value="multibezier" checked> multib</label>
+    <label><input type="checkbox" data-subpath value="spiral" checked> spiral</label>
+    <label><input type="checkbox" data-subpath value="noise" checked> noise</label>
+    <label><input type="checkbox" data-subpath value="zigzag" checked> zigzag</label>
+  </div>
+
+  <div class="separator"></div>
+  <h2>Glow/混合</h2>
+  <label>Glow开关
+    <select id="glowEnabled">
+      <option value="off">off</option>
+      <option value="on">on</option>
+    </select>
+  </label>
+  <label>Glow作用域
+    <select id="glowScope">
+      <option value="all">all</option>
+      <option value="chars">chars</option>
+      <option value="word">word</option>
+      <option value="modeOnly">modeOnly</option>
+    </select>
+  </label>
+  <label>Glow字符集<input id="glowChars" type="text" value="A,E,I,O,U,雨,电"></label>
+  <label>Glow颜色<input id="glowColor" type="color" value="#6cffb8"></label>
+  <label>Glow强度<input id="glowStrength" type="number" value="20"></label>
+  <label>Blend
+    <select id="blendMode">
+      <option value="source-over">source-over</option>
+      <option value="lighter">lighter</option>
+      <option value="screen">screen</option>
+      <option value="overlay">overlay</option>
+    </select>
+  </label>
+
+  <div class="separator"></div>
+  <h2>爆散</h2>
+  <label>启用爆散
+    <select id="explodeEnabled">
+      <option value="on">on</option>
+      <option value="off">off</option>
+    </select>
+  </label>
+  <label>爆散阈值<input id="explodeTrigger" type="number" step="0.05" value="0.75"></label>
+  <label>路径词爆散
+    <select id="explodeNormalWords">
+      <option value="on">on</option>
+      <option value="off">off</option>
+    </select>
+  </label>
+  <label>默认字符爆散
+    <select id="explodeDefaultChars">
+      <option value="off">off</option>
+      <option value="on">on</option>
+    </select>
+  </label>
+  <label>默认爆散概率<input id="explodeDefaultChance" type="number" step="0.01" value="0.02"></label>
+  <label>粒子/字<input id="explodeParticlesPerChar" type="number" value="14"></label>
+  <label>粒子寿命ms<input id="explodeLife" type="number" value="1400"></label>
+  <label>粒子初速<input id="explodeSpeed" type="number" value="280"></label>
+  <label>粒子重力<input id="explodeGravity" type="number" value="460"></label>
+  <label>粒子基大小<input id="explodeParticleSizeBase" type="number" value="18"></label>
+  <label>粒子缩放因子<input id="explodeParticleShrink" type="number" step="0.1" value="0.6"></label>
+
+  <div class="separator"></div>
+  <h2>渲染/输出</h2>
+  <label>拖影模式
+    <select id="trailMode">
+      <option value="fade">fade</option>
+      <option value="hard">hard</option>
+    </select>
+  </label>
+  <div class="flex-row">
+    <button id="togglePause">暂停</button>
+    <button id="exportPNG">导出PNG</button>
+  </div>
+  <div class="flex-row">
+    <button id="startGIF">开始GIF</button>
+    <button id="stopGIF" disabled>停止GIF</button>
+  </div>
+  <small>按 'Ctrl+H' 隐藏/显示面板。输入字符→缓冲；空格/Enter 提交。</small>
+  <div id="currentWord">当前单词: <em>(空)</em></div>
+  <div class="mode-indicator">颜色模式: <span id="modeText">green</span></div>
+  <div id="info-line">初始化...</div>
+
+  <div class="separator"></div>
+  <h2>统计</h2>
+  <div id="statsBox">
+    <div><strong>字符频次</strong></div>
+    <div id="charCounts"></div>
+    <div style="margin-top:6px;"><strong>最近输入</strong></div>
+    <div id="recentInputs"></div>
+    <div style="margin-top:6px;"><strong>已提交单词</strong></div>
+    <div id="wordsList"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/gif.js@0.2.0/dist/gif.js"></script>
+<script>
+/* ========= 数据结构 ========= */
+class Drop {
+  constructor(x,y,vy,ay,char,trailLength,colorOverride=null,wordId=null,isPathWord=false,indexInWord=0,isNormalWordChar=false){
+    this.x=x;this.y=y;this.vy=vy;this.ay=ay;
+    this.char=char;this.trailLength=trailLength;
+    this.history=[];
+    this.colorOverride=colorOverride;
+    this.wordId=wordId;
+    this.isPathWord=isPathWord;
+    this.indexInWord=indexInWord;
+    this.isNormalWordChar=isNormalWordChar;
+    this.id = Math.random(); // 为每个 drop 添加唯一ID
+  }
+}
+class WordGroup {
+  constructor(id,text,color,type,subType=null){
+    this.id=id;this.text=text;this.color=color;
+    this.type=type;      // 外层选择的 pathType（可能是 random）
+    this.subType=subType;// 真正使用的子路径类型
+    this.time=Date.now();
+  }
+}
+class PathWordMeta {
+  constructor(opts){Object.assign(this, opts); this.phase=0; this.t=0; this.segmentTs=0;}
+}
+class Particle {
+  constructor(x,y,vx,vy,life,created,char,color,baseSize,shrink){
+    this.x=x;this.y=y;this.vx=vx;this.vy=vy;
+    this.life=life;this.created=created;
+    this.char=char;this.color=color;
+    this.baseSize=baseSize;this.shrink=shrink;
+  }
+}
+class Flash {
+  constructor(x,y,r,life,created,color){
+    this.x=x;this.y=y;this.r=r;this.life=life;this.created=created;this.color=color;
+  }
+}
+
+/* ========= DOM refs ========= */
+function $(id){return document.getElementById(id);}
+const canvas=$('canvas');
+const ctx=canvas.getContext('2d');
+const panel = document.querySelector('.panel');
+
+const refs = {
+  density:$('density'), fontSize:$('fontSize'), fps:$('fps'), colorMode:$('colorMode'),
+  maxDrops:$('maxDrops'), trailMin:$('trailMin'), trailMax:$('trailMax'),
+  charsetInput:$('charsetInput'), applyCharset:$('applyCharset'), clearStats:$('clearStats'),
+  togglePause:$('togglePause'), exportPNG:$('exportPNG'), startGIF:$('startGIF'), stopGIF:$('stopGIF'),
+  minV:$('minV'), maxV:$('maxV'), gravity:$('gravity'), speedFactor:$('speedFactor'), trailMode:$('trailMode'),
+  recentLimit:$('recentLimit'), pathType:$('pathType'),
+  snakeAmp:$('snakeAmp'), snakeFreq:$('snakeFreq'), snakePhaseSpeed:$('snakePhaseSpeed'), snakePhaseOffset:$('snakePhaseOffset'),
+  bCtrl1X:$('bCtrl1X'), bCtrl2X:$('bCtrl2X'), bCtrlRand:$('bCtrlRand'), segmentCount:$('segmentCount'),
+  spiralTurns:$('spiralTurns'), spiralRadius:$('spiralRadius'),
+  noiseAmp:$('noiseAmp'), noiseFreq:$('noiseFreq'),
+  zigzagWidth:$('zigzagWidth'), zagPerHeight:$('zagPerHeight'),
+  glowEnabled:$('glowEnabled'), glowScope:$('glowScope'), glowChars:$('glowChars'),
+  glowColor:$('glowColor'), glowStrength:$('glowStrength'), blendMode:$('blendMode'),
+  explodeEnabled:$('explodeEnabled'), explodeTrigger:$('explodeTrigger'),
+  explodeNormalWords:$('explodeNormalWords'), 
+  explodeDefaultChars:$('explodeDefaultChars'), explodeDefaultChance:$('explodeDefaultChance'),
+  explodeParticlesPerChar:$('explodeParticlesPerChar'),
+  explodeLife:$('explodeLife'), explodeSpeed:$('explodeSpeed'), explodeGravity:$('explodeGravity'),
+  explodeParticleSizeBase:$('explodeParticleSizeBase'), explodeParticleShrink:$('explodeParticleShrink'),
+  randomPool:$('randomPool')
+};
+const charCountsDiv=$('charCounts');
+const recentInputsDiv=$('recentInputs');
+const wordsListDiv=$('wordsList');
+const currentWordDiv=$('currentWord');
+const infoLine=$('info-line');
+const modeText=$('modeText');
+
+/* ========= 状态 ========= */
+let width=window.innerWidth,height=window.innerHeight,dpr=window.devicePixelRatio||1;
+let fontSizeVal=parseInt(refs.fontSize.value,10);
+let running=true;
+let drops=[];
+let particles=[];
+let flashes=[];
+let frameInterval; let lastTime=performance.now(); let accumulator=0;
+let charSet=refs.charsetInput.value;
+let statsCharCounts=new Map();
+let recentInputsArr=[];
+let recentLimitVal=parseInt(refs.recentLimit.value,10);
+let currentWordBuffer="";
+let words=[];let nextWordId=1;
+const palette=['#ff6b6b','#feca57','#1dd1a1','#54a0ff','#5f27cd','#ff9ff3','#10ac84','#576574','#ff9f43','#48dbfb','#c8d600','#a55eea'];
+let paletteIndex=0;
+let charColorMap=new Map();
+let gifRecorder=null, recording=false, gifFrames=0;
+
+const pathMetas=new Map();        // wordId -> PathWordMeta
+const bezierCurves=new Map();     // wordId -> {segments:[{p0,p1,p2,p3},...], type:'single'/'multi'}
+let noiseSeed = Math.random()*1e6;
+
+// =========== Canvas resize ===========
+function resizeCanvas(){
+  width=window.innerWidth;height=window.innerHeight;dpr=window.devicePixelRatio||1;
+  canvas.width=width*dpr;canvas.height=height*dpr;
+  canvas.style.width=width+'px';canvas.style.height=height+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.font=`${fontSizeVal}px "Consolas","Courier New","Microsoft YaHei",monospace`;
+  ctx.textBaseline='top';
+}
+window.addEventListener('resize',resizeCanvas);
+resizeCanvas();
+
+/* ========= 工具函数 ========= */
+function desiredCount(){
+  const dens=parseFloat(refs.density.value);
+  const cols=Math.max(5,Math.floor(width/fontSizeVal));
+  return Math.min(parseInt(refs.maxDrops.value,10),Math.floor(cols*dens));
+}
+function randRange(a,b){return a+Math.random()*(b-a);}
+function randInt(a,b){return a+Math.floor(Math.random()*(b-a+1));}
+function pickWordColor(){const c=palette[paletteIndex%palette.length];paletteIndex++;return c;}
+function colorHash(ch){
+  if(charColorMap.has(ch)) return charColorMap.get(ch);
+  let h=0;for(let i=0;i<ch.length;i++) h=(h*131+ch.charCodeAt(i))>>>0;
+  const hue=h%360;const col=`hsl(${hue},70%,55%)`;charColorMap.set(ch,col);return col;
+}
+function hexToRgba(hex,a=1){
+  const h=hex.replace('#','');const n=parseInt(h,16);
+  let r,g,b;if(h.length===3){r=(n>>8)&0xF;g=(n>>4)&0xF;b=n&0xF;r=(r<<4)|r;g=(g<<4)|g;b=(b<<4)|b;} else {r=(n>>16)&255;g=(n>>8)&255;b=n&255;}
+  return `rgba(${r},${g},${b},${a})`;
+}
+function lerp(a,b,t){return a+(b-a)*t;}
+
+/* ==== 简易平滑噪声（value noise + 插值） ==== */
+function randomHash(x){
+  const s = Math.sin(x + noiseSeed)*43758.5453123;
+  return s - Math.floor(s);
+}
+function smoothNoise(x){
+  const x0=Math.floor(x);
+  const x1=x0+1;
+  const f=x - x0;
+  const v0=randomHash(x0);
+  const v1=randomHash(x1);
+  // 三次插值
+  const u = f*f*(3 - 2*f);
+  return v0*(1-u)+v1*u;
+}
+
+/* ==== 三次贝塞尔点 ==== */
+function bezierPoint(p0,p1,p2,p3,t){
+  const mt=1-t;
+  return {
+    x: mt*mt*mt*p0.x + 3*mt*mt*t*p1.x + 3*mt*t*t*p2.x + t*t*t*p3.x,
+    y: mt*mt*mt*p0.y + 3*mt*mt*t*p1.y + 3*mt*t*t*p2.y + t*t*t*p3.y
+  };
+}
+
+/* ========= 生成普通下落字符 ========= */
+function spawnOne(randomY=false){
+  if(!charSet.length) return;
+  const x=Math.random()*width;
+  const vy=randRange(parseFloat(refs.minV.value),parseFloat(refs.maxV.value));
+  const ay=parseFloat(refs.gravity.value);
+  const ch=charSet.charAt(Math.floor(Math.random()*charSet.length));
+  const tl=randInt(parseInt(refs.trailMin.value,10),parseInt(refs.trailMax.value,10));
+  drops.push(new Drop(x, randomY?Math.random()*height:-Math.random()*height*0.5, vy, ay, ch, tl));
+}
+function ensureInitial(){const t=desiredCount();for(let i=0;i<t;i++) spawnOne(true);}
+ensureInitial();
+
+/* ========= 取得 random 子路径集合 ========= */
+function getRandomSubPathPool(){
+  const boxes = refs.randomPool.querySelectorAll('input[data-subpath]');
+  return Array.from(boxes).filter(b=>b.checked).map(b=>b.value);
+}
+
+/* ========= 提交单词并创建路径 Meta ========= */
+function commitCurrentWord(){
+  const text=currentWordBuffer.trim();
+  if(!text){currentWordBuffer="";updateCurrentWordDisplay();return;}
+  const baseX=Math.random()*(width - fontSizeVal*text.length*0.9);
+  const baseY=-fontSizeVal*Math.random()*4;
+  let chosenType=refs.pathType.value;
+  let subType=null;
+
+  if(chosenType==='random'){
+    const pool=getRandomSubPathPool();
+    if(pool.length===0){
+      subType='sine'; // fallback
+    } else {
+      subType=pool[Math.floor(Math.random()*pool.length)];
+    }
+  } else {
+    subType=chosenType;
+  }
+
+  const wordColor=pickWordColor();
+  const wordObj=new WordGroup(nextWordId++, text, wordColor, refs.pathType.value, subType);
+  words.push(wordObj);
+  renderWordsList();
+  currentWordBuffer="";
+  updateCurrentWordDisplay();
+
+  // 路径类型判定
+  if(['sine','bezier','multibezier','spiral','noise','zigzag'].includes(subType)){
+    createPathMeta(wordObj, subType, baseX, baseY, text);
+  } else {
+    // fallback -> 普通直线
+    for(let i=0;i<text.length;i++){
+      const ch=text[i];
+      const vy=randRange(parseFloat(refs.minV.value),parseFloat(refs.maxV.value));
+      const ay=parseFloat(refs.gravity.value);
+      const tl=randInt(parseInt(refs.trailMin.value,10),parseInt(refs.trailMax.value,10));
+      drops.push(new Drop(baseX+i*fontSizeVal, baseY, vy, ay, ch, tl, null, wordObj.id, false, i, true));
+    }
+  }
+}
+
+/* ========= 创建不同路径 meta 与字母 drops ========= */
+function createPathMeta(wordObj, subType, baseX, baseY, text){
+  const meta=new PathWordMeta({
+    wordId: wordObj.id,
+    type: subType,
+    baseX, baseY,
+    fontSize: fontSizeVal,
+    amplitude: parseFloat(refs.snakeAmp.value),
+    freq: parseFloat(refs.snakeFreq.value),
+    phaseSpeed: parseFloat(refs.snakePhaseSpeed.value),
+    phaseOffset: parseFloat(refs.snakePhaseOffset.value),
+    // spiral
+    spiralTurns: parseFloat(refs.spiralTurns.value),
+    spiralRadius: parseFloat(refs.spiralRadius.value),
+    // noise
+    noiseAmp: parseFloat(refs.noiseAmp.value),
+    noiseFreq: parseFloat(refs.noiseFreq.value),
+    // zigzag
+    zigzagWidth: parseFloat(refs.zigzagWidth.value),
+    zagPerH: parseFloat(refs.zagPerHeight.value),
+    textLength: text.length
+  });
+  pathMetas.set(wordObj.id, meta);
+
+  // 额外：bezier / multibezier 生成控制点
+  if(subType==='bezier'){
+    const ctrlRand=parseFloat(refs.bCtrlRand.value);
+    const p0={x: baseX, y: baseY};
+    const p1={x: parseFloat(refs.bCtrl1X.value)*width + randRange(-ctrlRand,ctrlRand),
+              y: randRange(height*0.10,height*0.35)};
+    const p2={x: parseFloat(refs.bCtrl2X.value)*width + randRange(-ctrlRand,ctrlRand),
+              y: randRange(height*0.40,height*0.70)};
+    const p3={x: baseX + randRange(-120,120),
+              y: height + randRange(40,140)};
+    bezierCurves.set(wordObj.id,{type:'single',segments:[{p0,p1,p2,p3}]});
+  } else if(subType==='multibezier'){
+    const segCount=Math.max(1, parseInt(refs.segmentCount.value,10));
+    const ctrlRand=parseFloat(refs.bCtrlRand.value);
+    let lastX=baseX;
+    let lastY=baseY;
+    const segs=[];
+    for(let s=0;s<segCount;s++){
+      const p0={x:lastX,y:lastY};
+      const p1={x: (parseFloat(refs.bCtrl1X.value)+ (Math.random()*0.2-0.1))*width + randRange(-ctrlRand,ctrlRand),
+                y: randRange(height*(0.1+0.15*s), height*(0.25+0.15*s))};
+      const p2={x: (parseFloat(refs.bCtrl2X.value)+ (Math.random()*0.2-0.1))*width + randRange(-ctrlRand,ctrlRand),
+                y: randRange(height*(0.30+0.15*s), height*(0.50+0.15*s))};
+      const p3={x: p0.x + randRange(-180,180),
+                y: p2.y + randRange(60,120)};
+      segs.push({p0,p1,p2,p3});
+      lastX=p3.x; lastY=p3.y;
+    }
+    // 最后一段终点延伸出屏幕
+    const lastSeg=segs[segs.length-1];
+    lastSeg.p3.y = Math.max(lastSeg.p3.y, height + randRange(40,160));
+    bezierCurves.set(wordObj.id,{type:'multi',segments:segs});
+  }
+
+  // 创建字母 drops
+  for(let i=0;i<text.length;i++){
+    const ch=text[i];
+    const tl=randInt(parseInt(refs.trailMin.value,10),parseInt(refs.trailMax.value,10));
+    drops.push(new Drop(baseX, baseY, 0, 0, ch, tl, null, wordObj.id, true, i,false));
+  }
+}
+
+/* ========= 更新路径单词位置 ========= */
+function updatePathWords(dt){
+  for(const [wordId,meta] of pathMetas.entries()){
+    switch(meta.type){
+      case 'sine':
+        meta.phase += meta.phaseSpeed * dt;
+        meta.baseY += randRange(parseFloat(refs.minV.value),parseFloat(refs.maxV.value))*0.55*dt;
+        break;
+      case 'bezier':
+      case 'multibezier':
+        meta.t += meta.phaseSpeed * dt * 0.12;
+        if(meta.t>1) meta.t=1;
+        break;
+      case 'spiral':
+        meta.t += meta.phaseSpeed * dt * 0.09;
+        if(meta.t>1) meta.t=1;
+        break;
+      case 'noise':
+        meta.t += meta.phaseSpeed * dt * 0.10;
+        if(meta.t>1) meta.t=1;
+        break;
+      case 'zigzag':
+        meta.baseY += randRange(parseFloat(refs.minV.value),parseFloat(refs.maxV.value))*0.60*dt;
+        meta.phase += meta.phaseSpeed * dt;
+        break;
+    }
+  }
+
+  for(const d of drops){
+    if(!d.isPathWord) continue;
+    const meta=pathMetas.get(d.wordId);
+    if(!meta) continue;
+    switch(meta.type){
+      case 'sine': {
+        const wave=Math.sin(meta.phase + d.indexInWord*meta.phaseOffset)*meta.amplitude;
+        d.x = meta.baseX + d.indexInWord*meta.fontSize + wave;
+        d.y = meta.baseY + meta.freq*(d.indexInWord*1.8);
+        break;
+      }
+      case 'bezier':
+      case 'multibezier': {
+        const curve=bezierCurves.get(d.wordId);
+        if(curve){
+          let pt;
+            if(curve.type==='single'){
+              pt=bezierPoint(curve.segments[0].p0, curve.segments[0].p1, curve.segments[0].p2, curve.segments[0].p3, meta.t);
+            } else {
+              const segs=curve.segments;
+              const segCount=segs.length;
+              const segT = meta.t * segCount;
+              const segIndex = Math.min(segCount-1, Math.floor(segT));
+              const localT = segT - segIndex;
+              const seg = segs[segIndex];
+              pt=bezierPoint(seg.p0,seg.p1,seg.p2,seg.p3, localT);
+            }
+          d.x = pt.x + d.indexInWord*meta.fontSize;
+          d.y = pt.y;
+        }
+        break;
+      }
+      case 'spiral': {
+        const t=meta.t;
+        const angle = t * meta.spiralTurns * Math.PI*2;
+        const radius = meta.spiralRadius * (1 - t*0.7);
+        const centerX = meta.baseX;
+        const centerY = meta.baseY + t*(height + 120);
+        d.x = centerX + Math.cos(angle + d.indexInWord*0.05)*radius + d.indexInWord*meta.fontSize*0.15;
+        d.y = centerY + Math.sin(angle + d.indexInWord*0.05)*radius*0.3;
+        break;
+      }
+      case 'noise': {
+        const t=meta.t;
+        const baseY = meta.baseY + t*(height + 160);
+        const noiseBase = (t*meta.noiseFreq*5);
+        const nVal = (smoothNoise(noiseBase + d.indexInWord*0.5) - 0.5)*2; // -1 ~ 1
+        const offsetX = nVal * meta.noiseAmp;
+        d.x = meta.baseX + d.indexInWord*meta.fontSize + offsetX;
+        d.y = baseY;
+        break;
+      }
+      case 'zigzag': {
+        const yProgress = meta.baseY;
+        const cycles = yProgress / (height / meta.zagPerH);
+        const zigFactor = Math.sin(cycles * Math.PI * 2 + d.indexInWord*0.3);
+        d.x = meta.baseX + d.indexInWord*meta.fontSize + zigFactor * meta.zigzagWidth;
+        d.y = meta.baseY + d.indexInWord*2;
+        break;
+      }
+    }
+    d.history.push(d.y);
+    if(d.history.length>d.trailLength) d.history.splice(0,d.history.length-d.trailLength);
+  }
+}
+
+/* ========= 爆炸触发检测 ========= */
+function handlePathProgressAndExplosion(){
+  if(refs.explodeEnabled.value!=='on'){
+    cleanFinishedPaths();
+    return;
+  }
+  const triggerFrac=parseFloat(refs.explodeTrigger.value);
+  const toExplode=[];
+  for(const [wordId,meta] of pathMetas.entries()){
+    let currentY = estimateWordY(wordId, meta);
+    if(currentY >= height*triggerFrac){
+      toExplode.push(wordId);
+    }
+  }
+  if(toExplode.length){
+    for(const wid of toExplode) explodeWord(wid);
+    drops = drops.filter(d=> !toExplode.includes(d.wordId) || !d.isPathWord);
+    toExplode.forEach(id=>{pathMetas.delete(id);bezierCurves.delete(id);});
+  }
+  cleanFinishedPaths(); // 再清理越界
+}
+function estimateWordY(wordId, meta){
+  switch(meta.type){
+    case 'sine': return getWordMaxY(wordId);
+    case 'bezier':
+    case 'multibezier': {
+      const curve=bezierCurves.get(wordId);
+      if(!curve) return -1;
+      if(meta.t>=1){
+        const lastSeg=curve.segments[curve.segments.length-1];
+        return lastSeg.p3.y;
+      } else {
+        if(curve.type==='single'){
+          const seg=curve.segments[0];
+          return bezierPoint(seg.p0,seg.p1,seg.p2,seg.p3, meta.t).y;
+        } else {
+          const segs=curve.segments;
+            const segCount=segs.length;
+            const segT= meta.t*segCount;
+            const idx=Math.min(segCount-1, Math.floor(segT));
+            const localT= segT - idx;
+            const seg=segs[idx];
+            return bezierPoint(seg.p0,seg.p1,seg.p2,seg.p3,localT).y;
+        }
+      }
+    }
+    case 'spiral':
+    case 'noise': {
+      return meta.baseY + meta.t*(height+120);
+    }
+    case 'zigzag': return meta.baseY;
+    default: return getWordMaxY(wordId);
+  }
+}
+function getWordMaxY(wordId){
+  let maxY=-Infinity;
+  for(const d of drops){
+    if(d.wordId===wordId && d.isPathWord){
+      if(d.y>maxY) maxY=d.y;
+    }
+  }
+  return maxY;
+}
+function cleanFinishedPaths(){
+  const removeIds=[];
+  for(const [wordId,meta] of pathMetas.entries()){
+    const y=estimateWordY(wordId, meta);
+    if(y > height + 200){
+      removeIds.push(wordId);
+    }
+  }
+  if(removeIds.length){
+    drops = drops.filter(d=> !removeIds.includes(d.wordId) || !d.isPathWord);
+    removeIds.forEach(id=>{pathMetas.delete(id);bezierCurves.delete(id);});
+  }
+}
+
+/* 普通单词爆散 */
+function handleNormalWordExplosion(){
+  if(refs.explodeEnabled.value!=='on') return;
+  if(refs.explodeNormalWords.value!=='on') return;
+  const triggerFrac=parseFloat(refs.explodeTrigger.value);
+  const wordMap={};
+  for(const d of drops){
+    if(d.isNormalWordChar){
+      if(!wordMap[d.wordId]) wordMap[d.wordId]=[];
+      wordMap[d.wordId].push(d);
+    }
+  }
+  const toExplode=[];
+  for(const wid in wordMap){
+    const arr=wordMap[wid];
+    const maxY=Math.max(...arr.map(x=>x.y));
+    if(maxY>=height*triggerFrac) toExplode.push(parseInt(wid));
+  }
+  if(toExplode.length){
+    for(const wid of toExplode) explodeWord(wid);
+    drops = drops.filter(d=> !toExplode.includes(d.wordId) || !d.isNormalWordChar);
+  }
+}
+
+/* ========= 爆散 ========= */
+function explodeWord(wordId){
+  const word=words.find(w=>w.id===wordId);
+  if(!word) return;
+  const letters=drops.filter(d=>d.wordId===wordId && (d.isPathWord||d.isNormalWordChar));
+  if(!letters.length) return;
+  const perChar=parseInt(refs.explodeParticlesPerChar.value,10);
+  const speed=parseFloat(refs.explodeSpeed.value);
+  const life=parseInt(refs.explodeLife.value,10);
+  const sizeBase=parseFloat(refs.explodeParticleSizeBase.value);
+  const shrink=parseFloat(refs.explodeParticleShrink.value);
+  const now=performance.now();
+  const center=letters[Math.floor(letters.length/2)];
+  const flashX=center.x;
+  const flashY=Math.min(center.y, height - fontSizeVal);
+  flashes.push(new Flash(flashX, flashY, fontSizeVal*5, 260, now, word.color));
+
+  letters.forEach(letter=>{
+    const baseY=Math.min(letter.y, height - fontSizeVal);
+    for(let i=0;i<perChar;i++){
+      const ang=Math.random()*Math.PI*2;
+      const r=Math.pow(Math.random(),0.55);
+      const vx=Math.cos(ang)*speed*r;
+      const vy=Math.sin(ang)*speed*r*0.9 - speed*0.25;
+      particles.push(new Particle(letter.x, baseY, vx, vy, life, now, letter.char, word.color, sizeBase, shrink));
+    }
+  });
+}
+function explodeSingleDrop(drop) {
+    const perChar = parseInt(refs.explodeParticlesPerChar.value, 10);
+    const speed = parseFloat(refs.explodeSpeed.value);
+    const life = parseInt(refs.explodeLife.value, 10);
+    const sizeBase = parseFloat(refs.explodeParticleSizeBase.value);
+    const shrink = parseFloat(refs.explodeParticleShrink.value);
+    const now = performance.now();
+
+    // 为单个爆炸的字符选取一个颜色
+    const colorStr = pickColor(refs.colorMode.value, drop, 0, drop.y);
+    const tempColorEl = document.createElement('div');
+    tempColorEl.style.color = colorStr;
+    document.body.appendChild(tempColorEl);
+    const computedColor = window.getComputedStyle(tempColorEl).color;
+    document.body.removeChild(tempColorEl);
+
+    const match = /rgba?\((\d+), (\d+), (\d+)/.exec(computedColor);
+    const r = parseInt(match[1]);
+    const g = parseInt(match[2]);
+    const b = parseInt(match[3]);
+    const hexColor = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    
+    flashes.push(new Flash(drop.x, drop.y, fontSizeVal * 4, 200, now, hexColor));
+
+    for (let i = 0; i < perChar; i++) {
+        const ang = Math.random() * Math.PI * 2;
+        const r = Math.pow(Math.random(), 0.55);
+        const vx = Math.cos(ang) * speed * r;
+        const vy = Math.sin(ang) * speed * r * 0.9 - speed * 0.25;
+        particles.push(new Particle(drop.x, drop.y, vx, vy, life, now, drop.char, hexColor, sizeBase, shrink));
+    }
+}
+
+
+/* ========= 粒子与光环更新 ========= */
+function updateParticles(dt){
+  const g=parseFloat(refs.explodeGravity.value);
+  const now=performance.now();
+  particles = particles.filter(p=>{
+    const age=now - p.created;
+    if(age>p.life) return false;
+    p.vy += g*dt;
+    p.x  += p.vx*dt;
+    p.y  += p.vy*dt;
+    return true;
+  });
+  flashes = flashes.filter(f=>{
+    const age=now - f.created;
+    return age < f.life;
+  });
+}
+
+/* ========= 颜色模式 ========= */
+function pickColor(mode,drop,layerIndex,yPos){
+  if(drop.colorOverride) return drop.colorOverride;
+  if(mode==='wordcolor' && drop.wordId!=null){
+    const w=words.find(w=>w.id===drop.wordId);
+    if(w){
+      const alpha=Math.max(.18,1-layerIndex/(drop.trailLength+0.5));
+      return hexToRgba(w.color,alpha);
+    }
+  }
+  switch(mode){
+    case 'char-map': return colorHash(drop.char);
+    case 'rainbow': {
+      const ratio=yPos/height;
+      const h=(ratio*360 + layerIndex*11)%360;
+      return `hsl(${h},70%,55%)`;
+    }
+    case 'heat': {
+      const p=yPos/height;
+      if(p<0.2)return'rgba(0,40,120,1)';
+      if(p<0.4)return'rgba(0,120,200,1)';
+      if(p<0.55)return'rgba(0,200,120,1)';
+      if(p<0.7)return'rgba(200,200,0,1)';
+      if(p<0.85)return'rgba(255,140,0,1)';
+      return'rgba(255,50,0,1)';
+    }
+    case 'mono': {
+      const alpha=Math.max(.15,1-layerIndex/(drop.trailLength+0.5));
+      return `rgba(200,200,200,${alpha.toFixed(3)})`;
+    }
+    case 'green':
+    default:{
+      if(layerIndex===0) return '#b4ffd0';
+      const alpha=Math.max(.15,1-layerIndex/(drop.trailLength+0.5));
+      const g=Math.floor(180+40*Math.random());
+      const b=Math.floor(100+30*Math.random());
+      return `rgba(0,${g},${b},${alpha.toFixed(3)})`;
+    }
+  }
+}
+
+/* ========= Glow 判定 ========= */
+function needGlowForDrop(d){
+  if(refs.glowEnabled.value==='off') return false;
+  const scope=refs.glowScope.value;
+  if(scope==='all') return true;
+  if(scope==='word') return d.wordId!=null;
+  if(scope==='modeOnly') return (refs.colorMode.value==='green');
+  if(scope==='chars'){
+    const set=refs.glowChars.value.split(/[\s,，]+/).filter(Boolean);
+    return set.includes(d.char);
+  }
+  return false;
+}
+function needGlowForParticle(p){
+  if(refs.glowEnabled.value==='off') return false;
+  const scope=refs.glowScope.value;
+  if(scope==='all') return true;
+  if(scope==='word') return true;
+  if(scope==='modeOnly') return (refs.colorMode.value==='green');
+  if(scope==='chars'){
+    const set=refs.glowChars.value.split(/[\s,，]+/).filter(Boolean);
+    return set.includes(p.char);
+  }
+  return false;
+}
+
+/* ========= 统计 ========= */
+function updateCharStats(ch){statsCharCounts.set(ch,(statsCharCounts.get(ch)||0)+1);}
+function renderCharCounts(){
+  const arr=[...statsCharCounts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,150);
+  charCountsDiv.innerHTML=arr.map(([c,n])=>`<div class="stat-line"><span>${escapeHtml(c)}</span><span>${n}</span></div>`).join('')||'<em>无</em>';
+}
+function renderRecentInputs(){
+  recentInputsDiv.innerHTML=recentInputsArr.map(c=>`<span class="recent-char">${escapeHtml(c)}</span>`).join('')||'<em>无</em>';
+}
+function renderWordsList(){
+  wordsListDiv.innerHTML=words.slice(-120).map(w=>{
+    return `<div class="word-item"><span class="word-color-chip" style="background:${w.color}"></span>${escapeHtml(w.text)}<small>(${w.subType||w.type})</small></div>`;
+  }).join('')||'<em>无</em>';
+}
+function updateCurrentWordDisplay(){
+  currentWordDiv.innerHTML=`当前单词: <strong>${currentWordBuffer?escapeHtml(currentWordBuffer):'<em>(空)</em>'}</strong>`;
+}
+function escapeHtml(s){return s.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+
+/* ========= 帧循环 ========= */
+function updateFrameInterval(){
+  const fpsV=Math.max(5,parseFloat(refs.fps.value));
+  frameInterval=1000/fpsV;
+}
+updateFrameInterval();
+
+function loop(now){
+  if(!running){requestAnimationFrame(loop);return;}
+  const dt=now-lastTime; lastTime=now; accumulator+=dt;
+  while(accumulator>=frameInterval){
+    stepSimulation(frameInterval/1000);
+    accumulator-=frameInterval;
+  }
+  renderFrame();
+  if(recording && gifRecorder){
+    gifRecorder.addFrame(canvas,{delay:Math.round(frameInterval)});
+    gifFrames++; if(gifFrames%50===0) infoLine.textContent=`录制中... 帧:${gifFrames}`;
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ========= 仿真 ========= */
+function stepSimulation(dt){
+  const target=desiredCount();
+  const nonPathCount=drops.filter(d=>!d.isPathWord && !d.isNormalWordChar).length;
+  if(nonPathCount<target){
+    const add=target-nonPathCount;
+    for(let i=0;i<Math.min(add,8);i++) spawnOne(false);
+  }
+  updatePathWords(dt);
+  handlePathProgressAndExplosion();
+  handleNormalWordExplosion();
+
+  const factor=parseFloat(refs.speedFactor.value);
+  const defaultExplodeEnabled = refs.explodeEnabled.value === 'on' && refs.explodeDefaultChars.value === 'on';
+  const defaultExplodeChance = parseFloat(refs.explodeDefaultChance.value);
+  const triggerFrac = parseFloat(refs.explodeTrigger.value);
+
+  const dropsToExplode = [];
+
+  for(const d of drops){
+    if(d.isPathWord) continue;
+    d.vy += d.ay * dt * factor;
+    d.y  += d.vy * dt * factor;
+    d.history.push(d.y);
+    if(d.history.length>d.trailLength) d.history.splice(0,d.history.length-d.trailLength);
+    
+    // 默认字符的逻辑
+    if(!d.isNormalWordChar) {
+      // 检查是否触发默认字符爆炸
+      if(defaultExplodeEnabled && d.y >= height * triggerFrac && Math.random() < defaultExplodeChance){
+        dropsToExplode.push(d.id);
+        explodeSingleDrop(d);
+        d.toRemove=true;
+      }
+      // 循环
+      else if(d.y - fontSizeVal > height){
+        d.x=Math.random()*width;
+        d.y=-randRange(0,height*0.3);
+        d.vy=randRange(parseFloat(refs.minV.value),parseFloat(refs.maxV.value));
+        d.ay=parseFloat(refs.gravity.value);
+        d.char=charSet.charAt(Math.floor(Math.random()*charSet.length))||'#';
+        d.trailLength=randInt(parseInt(refs.trailMin.value,10),parseInt(refs.trailMax.value,10));
+        d.history.length=0;
+      }
+    } 
+    // 普通单词的越界移除
+    else if(d.isNormalWordChar && d.y - fontSizeVal > height + 80){
+      d.toRemove=true;
+    }
+  }
+  drops = drops.filter(d=>!d.toRemove);
+
+  updateParticles(dt);
+  infoLine.textContent=`drops:${drops.length} | 粒子:${particles.length} | flashes:${flashes.length} | 模式:${refs.colorMode.value} | pathType:${refs.pathType.value} | GIF:${recording?'YES':'NO'}`;
+}
+
+/* ========= 渲染 ========= */
+function renderFrame(){
+  const mode=refs.colorMode.value;
+  modeText.textContent=mode;
+  if(refs.trailMode.value==='fade'){
+    ctx.fillStyle=`rgba(0,0,0,${getComputedStyle(document.documentElement).getPropertyValue('--fade-alpha')})`;
+    ctx.fillRect(0,0,width,height);
+  } else {
+    ctx.clearRect(0,0,width,height);
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation=refs.blendMode.value;
+  // drops
+  for(const d of drops){
+    const hist=d.history;
+    for(let i=0;i<hist.length;i++){
+      const yPos=hist[i];
+      if(yPos<-fontSizeVal || yPos>height) continue;
+      const layerIndex=hist.length-1-i;
+      const color=pickColor(mode,d,layerIndex,yPos);
+      const glow=needGlowForDrop(d) && layerIndex===0;
+      if(glow){
+        ctx.save();
+        ctx.shadowColor=refs.glowColor.value;
+        ctx.shadowBlur=parseInt(refs.glowStrength.value,10);
+        ctx.fillStyle=color;
+        ctx.font=`${fontSizeVal}px "Consolas","Courier New","Microsoft YaHei",monospace`;
+        ctx.fillText(d.char,d.x,yPos);
+        ctx.restore();
+      } else {
+        ctx.fillStyle=color;
+        ctx.font=`${fontSizeVal}px "Consolas","Courier New","Microsoft YaHei",monospace`;
+        ctx.fillText(d.char,d.x,yPos);
+      }
+    }
+  }
+  // explosion flashes
+  const now=performance.now();
+  for(const f of flashes){
+    const age=now - f.created;
+    const a=1 - age/f.life;
+    if(a<=0) continue;
+    const grd=ctx.createRadialGradient(f.x,f.y,0,f.x,f.y,f.r * (1-a));
+    grd.addColorStop(0,hexToRgba(f.color,a*0.6));
+    grd.addColorStop(0.5,hexToRgba(f.color,a*0.25));
+    grd.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grd;
+    ctx.beginPath();
+    ctx.arc(f.x,f.y,f.r * (1-a),0,Math.PI*2);
+    ctx.fill();
+  }
+  // particles
+  for(const p of particles){
+    const age=now - p.created;
+    const alpha=Math.max(0,1 - age/p.life);
+    const size=p.baseSize * (alpha*p.shrink + (1-p.shrink));
+    const glow=needGlowForParticle(p);
+    ctx.save();
+    if(glow){
+      ctx.shadowColor=refs.glowColor.value;
+      ctx.shadowBlur=parseInt(refs.glowStrength.value,10)*0.8;
+    }
+    ctx.fillStyle=hexToRgba(p.color,alpha);
+    ctx.font=`${size}px "Consolas","Courier New","Microsoft YaHei",monospace`;
+    ctx.fillText(p.char,p.x,p.y);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* ========= 输入 ========= */
+window.addEventListener('keydown',e=>{
+  const activeEl=document.activeElement.tagName;
+  const isTyping = activeEl==='INPUT'||activeEl==='SELECT';
+
+  // 优先处理 Ctrl+H
+  if((e.ctrlKey || e.metaKey) && (e.key.toLowerCase() === 'h')) {
+    e.preventDefault(); // 阻止浏览器默认行为 (例如: 显示历史记录)
+    panel.classList.toggle('panel--hidden');
+    return;
+  }
+  
+  // 如果正在输入，则忽略 p 暂停键
+  if (isTyping && (e.key === 'p' || e.key === 'P')) {
+      // 允许在输入框中输入'p'
+  } else if (e.key === 'p' || e.key === 'P') {
+      togglePause();
+      return;
+  }
+
+  // 其他快捷键和输入
+  if(e.key===' '||e.key==='Enter'){commitCurrentWord();e.preventDefault();return;}
+
+  if(e.key.length===1 && !isTyping && !e.ctrlKey && !e.metaKey && !e.altKey){
+    const ch=e.key;
+    currentWordBuffer+=ch;
+    updateCurrentWordDisplay();
+    updateCharStats(ch);
+    recentInputsArr.push(ch);
+    recentLimitVal=parseInt(refs.recentLimit.value,10);
+    if(recentInputsArr.length>recentLimitVal) recentInputsArr.splice(0,recentInputsArr.length-recentLimitVal);
+    const vy=randRange(parseFloat(refs.minV.value),parseFloat(refs.maxV.value));
+    const ay=parseFloat(refs.gravity.value);
+    const tl=randInt(parseInt(refs.trailMin.value,10),parseInt(refs.trailMax.value,10));
+    const override=(refs.colorMode.value==='char-map')? colorHash(ch):null;
+    drops.push(new Drop(Math.random()*width,-10,vy,ay,ch,tl,override,null,false,0,false));
+  }
+});
+
+/* ========= 控件事件 ========= */
+refs.applyCharset.addEventListener('click',()=>{charSet=refs.charsetInput.value||'0123456789ABCDEF';});
+refs.clearStats.addEventListener('click',()=>{
+  statsCharCounts.clear();recentInputsArr=[];words=[];currentWordBuffer="";
+  pathMetas.clear();bezierCurves.clear();particles=[];flashes=[];
+  updateCurrentWordDisplay();renderCharCounts();renderRecentInputs();renderWordsList();
+  paletteIndex=0;
+});
+refs.fontSize.addEventListener('change',()=>{fontSizeVal=parseInt(refs.fontSize.value,10);resizeCanvas();});
+refs.fps.addEventListener('change',updateFrameInterval);
+
+[
+ 'density','maxDrops','trailMin','trailMax','minV','maxV','gravity','speedFactor','trailMode',
+ 'colorMode','recentLimit','pathType','snakeAmp','snakeFreq','snakePhaseSpeed','snakePhaseOffset',
+ 'bCtrl1X','bCtrl2X','bCtrlRand','segmentCount','spiralTurns','spiralRadius','noiseAmp','noiseFreq',
+ 'zigzagWidth','zagPerHeight','glowEnabled','glowScope','glowChars','glowColor','glowStrength',
+ 'blendMode','explodeEnabled','explodeTrigger','explodeNormalWords','explodeDefaultChars', 'explodeDefaultChance',
+ 'explodeParticlesPerChar',
+ 'explodeLife','explodeSpeed','explodeGravity','explodeParticleSizeBase','explodeParticleShrink'
+].forEach(id=>{
+  if (!refs[id]) return; // 添加一个检查以防万一
+  refs[id].addEventListener('change',()=>{
+    if(id==='recentLimit'){
+      recentLimitVal=parseInt(refs.recentLimit.value,10);
+      if(recentInputsArr.length>recentLimitVal){
+        recentInputsArr.splice(0,recentInputsArr.length-recentLimitVal);
+      }
+      renderRecentInputs();
+    }
+  });
+});
+
+refs.togglePause.addEventListener('click',togglePause);
+function togglePause(){
+  running=!running;
+  refs.togglePause.textContent=running?'暂停':'继续';
+}
+
+/* ========= PNG / GIF ========= */
+refs.exportPNG.addEventListener('click',()=>{
+  const url=canvas.toDataURL('image/png');
+  const a=document.createElement('a');
+  a.href=url;a.download=`falling_${Date.now()}.png`;a.click();
+});
+refs.startGIF.addEventListener('click',()=>{
+  if(recording) return;
+  gifRecorder=new GIF({workers:2,quality:10,workerScript:'https://unpkg.com/gif.js@0.2.0/dist/gif.worker.js'});
+  recording=true;gifFrames=0;
+  refs.startGIF.disabled=true;refs.stopGIF.disabled=false;
+  infoLine.textContent='GIF录制开始...';
+});
+refs.stopGIF.addEventListener('click',()=>{
+  if(!recording||!gifRecorder)return;
+  recording=false;
+  refs.startGIF.disabled=false;refs.stopGIF.disabled=true;
+  infoLine.textContent='GIF生成中...';
+  gifRecorder.on('finished',blob=>{
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=`falling_${Date.now()}.gif`;a.click();
+    URL.revokeObjectURL(url);
+    infoLine.textContent='GIF导出完成';
+  });
+  gifRecorder.render();
+});
+
+/* ========= 定期刷新统计 ========= */
+setInterval(()=>{
+  renderCharCounts();
+  renderRecentInputs();
+  renderWordsList();
+},1000);
+
+/* ========= 初始化 ========= */
+updateCurrentWordDisplay();
+renderCharCounts();
+renderRecentInputs();
+renderWordsList();
+</script>
+</body>
+</html>
