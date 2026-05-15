@@ -3,186 +3,158 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Doge Matrix Fixed</title>
+<title>ASCII Art Matrix - Multi Pattern</title>
 
 <style>
-  * {
-    box-sizing: border-box;
+  * { box-sizing: border-box; }
+
+  :root {
+    --theme-1: #ffbf47;
+    --theme-2: #ff8500;
+    --theme-3: #ff5400;
+    --theme-glow: rgba(255,170,40,.35);
   }
+  body.theme-cyber  { --theme-1:#00ffd9; --theme-2:#00b3ff; --theme-3:#6a00ff; --theme-glow:rgba(0,255,217,.35); }
+  body.theme-blood  { --theme-1:#ff5577; --theme-2:#ff1144; --theme-3:#8b0000; --theme-glow:rgba(255,40,80,.35); }
+  body.theme-mint   { --theme-1:#aaff77; --theme-2:#22dd88; --theme-3:#00754a; --theme-glow:rgba(80,255,150,.35); }
+  body.theme-rainbow .title,
+  body.theme-rainbow pre#art { animation: rainbowHue 6s linear infinite; }
+  @keyframes rainbowHue { 0%{filter:hue-rotate(0deg);} 100%{filter:hue-rotate(360deg);} }
 
   body {
     margin: 0;
     height: 100vh;
     overflow: hidden;
     background:
-      radial-gradient(circle at center, rgba(255, 190, 70, 0.18), transparent 35%),
+      radial-gradient(circle at center, var(--theme-glow), transparent 40%),
       linear-gradient(135deg, #050301, #1c1004 45%, #3a2108);
     font-family: "Courier New", Consolas, Menlo, Monaco, monospace;
+    transition: background .6s ease;
   }
+  body.theme-cyber  { background: radial-gradient(circle at center, var(--theme-glow), transparent 40%), linear-gradient(135deg,#000814,#001d3d 45%,#003566); }
+  body.theme-blood  { background: radial-gradient(circle at center, var(--theme-glow), transparent 40%), linear-gradient(135deg,#0a0000,#1a0000 45%,#330000); }
+  body.theme-mint   { background: radial-gradient(circle at center, var(--theme-glow), transparent 40%), linear-gradient(135deg,#001a0a,#003319 45%,#004d26); }
 
-  canvas {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
+  canvas#matrix { position: fixed; inset: 0; z-index: 0; }
+  canvas#fx     { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+  .toolbar {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    z-index: 5; display: flex; flex-wrap: wrap; gap: 8px;
+    padding: 10px 14px; max-width: 95vw; justify-content: center;
+    background: rgba(0,0,0,.5);
+    border: 1px solid var(--theme-1);
+    border-radius: 14px;
+    box-shadow: 0 0 30px var(--theme-glow);
+    backdrop-filter: blur(8px);
   }
+  .toolbar button, .toolbar select {
+    font-family: inherit; font-size: 12px; padding: 6px 10px;
+    background: rgba(255,255,255,.05); color: var(--theme-1);
+    border: 1px solid var(--theme-1); border-radius: 8px; cursor: pointer;
+    transition: all .2s ease;
+  }
+  .toolbar button:hover, .toolbar select:hover {
+    background: var(--theme-1); color: #000; box-shadow: 0 0 12px var(--theme-1);
+  }
+  .toolbar button.active { background: var(--theme-2); color: #000; border-color: var(--theme-2); }
+  .toolbar .group { display: flex; gap: 6px; align-items: center; padding: 0 8px; border-right: 1px solid rgba(255,255,255,.15); }
+  .toolbar .group:last-child { border-right: none; }
+  .toolbar label { color: var(--theme-1); font-size: 11px; }
 
   .stage {
-    position: relative;
-    z-index: 2;
+    position: relative; z-index: 2;
     min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 24px;
+    display: flex; justify-content: center; align-items: center;
+    padding: 90px 24px 24px;
   }
 
   .panel {
     position: relative;
-    padding: 36px 44px;
-    border-radius: 30px;
-    background: rgba(20, 10, 2, 0.76);
-    border: 1px solid rgba(255, 205, 90, 0.5);
-    box-shadow:
-      0 0 50px rgba(255, 170, 40, 0.35),
-      inset 0 0 45px rgba(255, 210, 110, 0.12);
+    padding: 30px 38px;
+    border-radius: 26px;
+    background: rgba(20,10,2,.78);
+    border: 1px solid var(--theme-1);
+    box-shadow: 0 0 50px var(--theme-glow), inset 0 0 45px rgba(255,210,110,.08);
     backdrop-filter: blur(10px);
-    animation: panelIn 1.2s ease forwards;
+    animation: panelIn 1s ease forwards;
+    max-width: 95vw;
   }
-
   @keyframes panelIn {
-    from {
-      opacity: 0;
-      transform: translateY(28px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity:0; transform: translateY(28px) scale(.95); }
+    to   { opacity:1; transform: translateY(0) scale(1); }
   }
 
   .title {
-    text-align: center;
-    color: #ffe59a;
-    font-size: 36px;
-    font-weight: 900;
-    margin-bottom: 28px;
-    text-shadow:
-      0 0 8px #ffb703,
-      0 0 20px #ff8500,
-      0 0 40px #ff5400;
+    text-align: center; color: #ffe59a;
+    font-size: 30px; font-weight: 900; letter-spacing: 2px;
+    margin-bottom: 22px;
+    text-shadow: 0 0 8px var(--theme-1), 0 0 20px var(--theme-2), 0 0 40px var(--theme-3);
   }
 
-  .doge-wrap {
-    display: flex;
-    justify-content: center;
-    overflow-x: auto;
-  }
+  .doge-wrap { display: flex; justify-content: center; overflow-x: auto; }
 
-  pre {
+  pre#art {
     margin: 0;
-    color: #ffc857;
-
-    /*
-      关键：
-      1. 固定等宽字体
-      2. 固定字号
-      3. 固定行高
-      4. 禁止额外字距
-      这样 doge 不容易变形
-    */
+    color: var(--theme-1);
     font-family: "Courier New", Consolas, Menlo, Monaco, monospace;
-    font-size: 16px;
-    line-height: 16px;
+    font-size: 14px;
+    line-height: 14px;
     letter-spacing: 0;
     white-space: pre;
     font-variant-ligatures: none;
     text-rendering: geometricPrecision;
-
-    text-shadow:
-      0 0 6px rgba(255, 195, 80, 0.95),
-      0 0 18px rgba(255, 135, 20, 0.75);
-
+    text-shadow: 0 0 6px var(--theme-1), 0 0 18px var(--theme-2);
     opacity: 0;
     filter: blur(8px);
-    transition:
-      opacity 1.2s ease,
-      filter 1.2s ease;
+    transition: opacity 1s ease, filter 1s ease;
   }
+  pre#art.show  { opacity: 1; filter: blur(0); }
+  pre#art.flash { animation: pulseGlow 1.8s ease-in-out infinite alternate; }
+  pre#art.shake { animation: shake .25s linear infinite, pulseGlow 1.8s ease-in-out infinite alternate; }
+  pre#art.invert{ filter: invert(1) hue-rotate(180deg); }
 
-  pre.show {
-    opacity: 1;
-    filter: blur(0);
+  @keyframes pulseGlow {
+    from { text-shadow: 0 0 6px var(--theme-1), 0 0 18px var(--theme-2); filter: brightness(1); }
+    to   { text-shadow: 0 0 14px #fff, 0 0 28px var(--theme-1), 0 0 55px var(--theme-3); filter: brightness(1.4); }
   }
-
-  pre.flash {
-    animation: goldenFlash 1.6s ease-in-out infinite alternate;
-  }
-
-  @keyframes goldenFlash {
-    from {
-      text-shadow:
-        0 0 6px rgba(255, 195, 80, 0.9),
-        0 0 18px rgba(255, 135, 20, 0.7);
-      filter: brightness(1);
-    }
-    to {
-      text-shadow:
-        0 0 12px rgba(255, 240, 170, 1),
-        0 0 28px rgba(255, 190, 40, 1),
-        0 0 55px rgba(255, 110, 10, 0.9);
-      filter: brightness(1.35);
-    }
+  @keyframes shake {
+    0%,100% { transform: translate(0,0); }
+    25%     { transform: translate(-2px,1px); }
+    50%     { transform: translate(2px,-1px); }
+    75%     { transform: translate(-1px,2px); }
   }
 
   .status {
-    text-align: center;
-    margin-top: 22px;
-    color: #fff0b3;
-    font-size: 18px;
-    min-height: 26px;
-    text-shadow: 0 0 10px #ff9f1c;
+    text-align: center; margin-top: 18px;
+    color: #fff0b3; font-size: 16px; min-height: 22px;
+    text-shadow: 0 0 10px var(--theme-2);
   }
 
   .floating-word {
-    position: fixed;
-    z-index: 3;
-    pointer-events: none;
-    color: #fff4bd;
-    font-weight: 900;
-    text-shadow:
-      0 0 10px #ffb703,
-      0 0 25px #fb8500;
+    position: fixed; z-index: 3; pointer-events: none;
+    color: #fff4bd; font-weight: 900;
+    text-shadow: 0 0 10px var(--theme-1), 0 0 25px var(--theme-2);
     animation: floatAway 2.2s ease forwards;
   }
-
   @keyframes floatAway {
-    0% {
-      opacity: 0;
-      transform: translateY(20px) scale(0.8) rotate(-8deg);
-    }
-    20% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-      transform: translateY(-90px) scale(1.25) rotate(8deg);
-    }
+    0%   { opacity:0; transform: translateY(20px) scale(.8) rotate(-8deg); }
+    20%  { opacity:1; }
+    100% { opacity:0; transform: translateY(-90px) scale(1.25) rotate(8deg); }
+  }
+
+  .hint {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    color: var(--theme-1); opacity: .55; font-size: 11px;
+    z-index: 5; text-align: center; pointer-events: none;
   }
 
   @media (max-width: 720px) {
-    .panel {
-      padding: 26px 18px;
-      width: 100%;
-    }
-
-    .title {
-      font-size: 26px;
-    }
-
-    pre {
-      font-size: 12px;
-      line-height: 12px;
-    }
+    .panel { padding: 20px 12px; }
+    .title { font-size: 22px; }
+    pre#art { font-size: 10px; line-height: 10px; }
+    .toolbar { font-size: 10px; padding: 6px 8px; gap: 4px; }
+    .toolbar button, .toolbar select { font-size: 10px; padding: 4px 6px; }
   }
 </style>
 </head>
@@ -190,21 +162,55 @@
 <body>
 
 <canvas id="matrix"></canvas>
+<canvas id="fx"></canvas>
+
+<div class="toolbar">
+  <div class="group">
+    <label>图案</label>
+    <select id="patternSel"></select>
+  </div>
+  <div class="group">
+    <label>主题</label>
+    <button data-theme="gold" class="active">金</button>
+    <button data-theme="cyber">青</button>
+    <button data-theme="blood">血</button>
+    <button data-theme="mint">薄荷</button>
+    <button data-theme="rainbow">虹</button>
+  </div>
+  <div class="group">
+    <button id="btnReplay">▶ 重播</button>
+    <button id="btnShake">震动</button>
+    <button id="btnInvert">反色</button>
+    <button id="btnFire">🔥</button>
+    <button id="btnFireworks">💥</button>
+    <button id="btnSnow">❄</button>
+    <button id="btnClear">⌫ 清屏</button>
+  </div>
+  <div class="group">
+    <label>速度</label>
+    <select id="speedSel">
+      <option value="20">慢</option>
+      <option value="5" selected>中</option>
+      <option value="1">快</option>
+      <option value="0">瞬间</option>
+    </select>
+  </div>
+</div>
 
 <div class="stage">
   <div class="panel">
-    <div class="title">DOGE SYSTEM ONLINE</div>
-
-    <div class="doge-wrap">
-      <pre id="doge"></pre>
-    </div>
-
+    <div class="title" id="titleEl">ASCII MATRIX ONLINE</div>
+    <div class="doge-wrap"><pre id="art"></pre></div>
     <div class="status" id="status">loading matrix...</div>
   </div>
 </div>
 
+<div class="hint">空格=重播 · 1~8=切换图案 · F=烟花 · S=雪 · R=震动 · I=反色 · 双击=爆炸</div>
+
 <script>
-  const dogeArt = String.raw`
+/* ============== ASCII PATTERNS ============== */
+const PATTERNS = {
+  doge: { name:"Doge", title:"DOGE SYSTEM ONLINE", art: String.raw`
               ▄              ▄
              ▌▒█           ▄▀▒▌
              ▌▒▒█        ▄▀▒▒▒▐
@@ -227,107 +233,310 @@
               WOW      SUCH DOGE
           MUCH CHARACTER     VERY HTML
                 SO LEGENDARY
-`;
+`},
+  cat: { name:"Cat", title:"CAT.EXE ACTIVATED", art: String.raw`
+        /\_____/\
+       /  o   o  \
+      ( ==  ^  == )
+       )         (
+      (           )
+     ( (  )   (  ) )
+    (__(__)___(__)__)
 
-  const canvas = document.getElementById("matrix");
-  const ctx = canvas.getContext("2d");
-  const doge = document.getElementById("doge");
-  const statusText = document.getElementById("status");
+           meow~
+`},
+  skull: { name:"Skull", title:"MEMENTO MORI", art: String.raw`
+            _____
+           /     \
+          | () () |
+           \  ^  /
+            |||||
+            |||||
+           /     \
+          /_______\
+         |  SKULL  |
+          \_______/
+`},
+  heart: { name:"Heart", title:"HEART LOADED", art: String.raw`
+       ♥♥♥     ♥♥♥
+     ♥♥♥♥♥♥ ♥♥♥♥♥♥
+     ♥♥♥♥♥♥♥♥♥♥♥♥♥
+      ♥♥♥♥♥♥♥♥♥♥♥
+        ♥♥♥♥♥♥♥
+          ♥♥♥
+           ♥
+`},
+  dragon: { name:"Dragon", title:"DRAGON SUMMONED", art: String.raw`
+                        ___====-_  _-====___
+                  _--^^^#####//      \\#####^^^--_
+               _-^##########// (    ) \\##########^-_
+              -############//  |\^^/|  \\############-
+            _/############//   (@::@)   \\############\_
+           /#############((     \\//     ))#############\
+          -###############\\    (oo)    //###############-
+         -#################\\  / "" \  //#################-
+        -###################\\/      \//###################-
+       _#/|##########/\######(   /\   )######/\##########|\#_
+       |/ |#/\#/\#/\/  \#/\##\  |  |  /##/\#/  \/\#/\#/\#| \|
+       |  |/  V  V      V  \#\| |  | |/#/  V      V  V  \|  |
+       |  |                   V  \#\| |/#/  V                |  |
+                                V  \#\#/  V
+                                    ##
+`},
+  rocket: { name:"Rocket", title:"LAUNCH SEQUENCE", art: String.raw`
+             |
+            / \
+           / _ \
+          |.o '.|
+          |'._.'|
+          |     |
+        ,'|  |  |'.
+       /  |  |  |  \
+       |,-'--|--'-.|
+        \   |||   /
+         \  |||  /
+          \ ||| /
+           \|||/
+            '''
+`},
+  pika: { name:"Pikachu", title:"PIKACHU APPEARS", art: String.raw`
+               /\___/\
+              ( =^.^= )    pika pika!
+               )   ('   ,
+              /  ~   ~ /
+             (___) (___)
+               U     U
+`},
+  matrix: { name:"Matrix", title:"WAKE UP NEO", art: String.raw`
+    ┌─────────────────────┐
+    │  T H E   M A T R I X │
+    ├─────────────────────┤
+    │ 01001000 01101001   │
+    │ 01010111 01100001   │
+    │ 01101011 01100101   │
+    │ 01010101 01110000   │
+    └─────────────────────┘
+        follow the rabbit
+`}
+};
 
-  let width;
-  let height;
-  let columns;
-  let drops;
+/* ============== DOM ============== */
+const matrixCanvas = document.getElementById("matrix");
+const fxCanvas     = document.getElementById("fx");
+const mctx         = matrixCanvas.getContext("2d");
+const fctx         = fxCanvas.getContext("2d");
+const artEl        = document.getElementById("art");
+const titleEl      = document.getElementById("titleEl");
+const statusEl     = document.getElementById("status");
+const patternSel   = document.getElementById("patternSel");
+const speedSel     = document.getElementById("speedSel");
 
-  const chars = "D0G3WOWSUCHVERYHTML▒░█▌▐▄▀0123456789";
-  const matrixFontSize = 18;
+let W, H, columns, drops;
+const matrixFontSize = 18;
+const MATRIX_CHARS = "▒░█▌▐▄▀0123456789ABCDEFアカサタナハマヤラワ";
 
-  function resizeCanvas() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-    columns = Math.floor(width / matrixFontSize);
-    drops = Array(columns).fill(1);
+function resize(){
+  W = matrixCanvas.width  = fxCanvas.width  = window.innerWidth;
+  H = matrixCanvas.height = fxCanvas.height = window.innerHeight;
+  columns = Math.floor(W / matrixFontSize);
+  drops = Array(columns).fill(1);
+}
+window.addEventListener("resize", resize);
+resize();
+
+/* ============== Matrix rain ============== */
+function drawMatrix(){
+  mctx.fillStyle = "rgba(5,3,1,0.12)";
+  mctx.fillRect(0,0,W,H);
+  const tc = getComputedStyle(document.body).getPropertyValue('--theme-1').trim() || "#ffbf47";
+  mctx.fillStyle = tc;
+  mctx.font = matrixFontSize + "px Courier New";
+  for (let i=0;i<drops.length;i++){
+    const ch = MATRIX_CHARS[Math.floor(Math.random()*MATRIX_CHARS.length)];
+    const x = i*matrixFontSize, y = drops[i]*matrixFontSize;
+    mctx.fillText(ch, x, y);
+    if (y>H && Math.random()>0.975) drops[i]=0;
+    drops[i]++;
   }
+}
+setInterval(drawMatrix, 38);
 
-  window.addEventListener("resize", resizeCanvas);
-  resizeCanvas();
+/* ============== FX layer ============== */
+const particles = [];
+let snowOn = false;
+let fireOn = false;
 
-  function drawMatrix() {
-    ctx.fillStyle = "rgba(5, 3, 1, 0.12)";
-    ctx.fillRect(0, 0, width, height);
+function fxLoop(){
+  fctx.clearRect(0,0,W,H);
 
-    ctx.fillStyle = "#ffbf47";
-    ctx.font = matrixFontSize + "px Courier New";
-
-    for (let i = 0; i < drops.length; i++) {
-      const text = chars[Math.floor(Math.random() * chars.length)];
-      const x = i * matrixFontSize;
-      const y = drops[i] * matrixFontSize;
-
-      ctx.fillText(text, x, y);
-
-      if (y > height && Math.random() > 0.975) {
-        drops[i] = 0;
-      }
-
-      drops[i]++;
+  if (snowOn && Math.random()<0.6){
+    particles.push({ type:'snow', x:Math.random()*W, y:-10,
+      vx:(Math.random()-.5)*.4, vy:0.5+Math.random()*1.2,
+      r:1+Math.random()*2.5, life:600, color:'rgba(255,255,255,0.85)' });
+  }
+  if (fireOn){
+    for (let i=0;i<6;i++){
+      particles.push({ type:'fire',
+        x: W/2 + (Math.random()-.5)*200,
+        y: H - 20 + Math.random()*10,
+        vx:(Math.random()-.5)*1.2, vy:-1.5-Math.random()*2,
+        r:6+Math.random()*8, life:60+Math.random()*30,
+        hue:15+Math.random()*30 });
     }
   }
 
-  const matrixTimer = setInterval(drawMatrix, 38);
+  for (let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.life--;
+    if (p.type==='spark'){
+      p.vy += 0.05; p.vx *= 0.99;
+      fctx.fillStyle = `hsla(${p.hue},100%,${60+p.life/4}%,${Math.max(0,p.life/p.maxLife)})`;
+      fctx.beginPath(); fctx.arc(p.x,p.y,p.r,0,Math.PI*2); fctx.fill();
+    } else if (p.type==='snow'){
+      p.vx += (Math.random()-.5)*0.02;
+      fctx.fillStyle = p.color;
+      fctx.beginPath(); fctx.arc(p.x,p.y,p.r,0,Math.PI*2); fctx.fill();
+    } else if (p.type==='fire'){
+      p.r *= 0.96;
+      fctx.fillStyle = `hsla(${p.hue},100%,55%,${Math.max(0,p.life/80)})`;
+      fctx.beginPath(); fctx.arc(p.x,p.y,p.r,0,Math.PI*2); fctx.fill();
+    }
+    if (p.life<=0 || p.y>H+20 || p.x<-20 || p.x>W+20) particles.splice(i,1);
+  }
+  requestAnimationFrame(fxLoop);
+}
+fxLoop();
 
-  function typeDoge() {
-    doge.classList.add("show");
-    doge.textContent = "";
+function firework(x,y){
+  const hue = Math.random()*360;
+  const n = 60 + Math.floor(Math.random()*40);
+  for (let i=0;i<n;i++){
+    const a = (i/n)*Math.PI*2 + Math.random()*0.1;
+    const sp = 2 + Math.random()*4;
+    const life = 60 + Math.random()*40;
+    particles.push({ type:'spark', x, y,
+      vx:Math.cos(a)*sp, vy:Math.sin(a)*sp,
+      r:1.5+Math.random()*1.5,
+      hue: hue+Math.random()*30,
+      life, maxLife:life });
+  }
+}
 
-    let index = 0;
+/* ============== Patterns ============== */
+let currentKey = 'doge';
+let typingTimer = null;
 
-    const timer = setInterval(() => {
-      doge.textContent += dogeArt[index];
-      index++;
+Object.entries(PATTERNS).forEach(([k,v])=>{
+  const o = document.createElement('option');
+  o.value = k; o.textContent = v.name;
+  patternSel.appendChild(o);
+});
 
-      if (index % 70 === 0) {
-        const progress = Math.floor(index / dogeArt.length * 100);
-        statusText.textContent = "assembling doge... " + progress + "%";
+function render(key){
+  if (typingTimer) { clearInterval(typingTimer); typingTimer=null; }
+  currentKey = key;
+  const p = PATTERNS[key];
+  titleEl.textContent = p.title;
+  artEl.classList.remove('show','flash','shake','invert');
+  artEl.textContent = '';
+  statusEl.textContent = 'compiling pattern...';
+
+  setTimeout(()=>{
+    artEl.classList.add('show');
+    const speed = parseInt(speedSel.value,10);
+    const art = p.art;
+
+    if (speed===0){
+      artEl.textContent = art;
+      statusEl.textContent = 'complete. such wow.';
+      artEl.classList.add('flash');
+      launchWords();
+      return;
+    }
+    let idx = 0;
+    typingTimer = setInterval(()=>{
+      artEl.textContent += art[idx];
+      idx++;
+      if (idx % 60 === 0){
+        const pct = Math.floor(idx/art.length*100);
+        statusEl.textContent = `assembling... ${pct}%`;
       }
-
-      if (index >= dogeArt.length) {
-        clearInterval(timer);
-        statusText.textContent = "complete. such wow.";
-        doge.classList.add("flash");
+      if (idx>=art.length){
+        clearInterval(typingTimer); typingTimer=null;
+        statusEl.textContent = 'complete. such wow.';
+        artEl.classList.add('flash');
         launchWords();
       }
-    }, 5);
+    }, speed);
+  }, 150);
+}
+
+/* ============== Floating words ============== */
+const WORDS = ["WOW","MUCH HTML","VERY DOGE","SUCH CODE","SO LEGENDARY","AMAZE","COOL","NICE","✨","💫","★"];
+let wordTimer = null;
+function launchWords(){
+  if (wordTimer) clearInterval(wordTimer);
+  wordTimer = setInterval(()=>{
+    const w = document.createElement('div');
+    w.className = 'floating-word';
+    w.textContent = WORDS[Math.floor(Math.random()*WORDS.length)];
+    w.style.left = (Math.random()*80+10)+'vw';
+    w.style.top  = (Math.random()*70+15)+'vh';
+    w.style.fontSize = (Math.random()*22+20)+'px';
+    document.body.appendChild(w);
+    setTimeout(()=>w.remove(),2300);
+  }, 700);
+}
+
+/* ============== Toolbar ============== */
+patternSel.addEventListener('change', e => render(e.target.value));
+speedSel.addEventListener('change', ()=> render(currentKey));
+
+document.querySelectorAll('[data-theme]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-theme]').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.body.className = '';
+    const t = btn.dataset.theme;
+    if (t!=='gold') document.body.classList.add('theme-'+t);
+  });
+});
+
+document.getElementById('btnReplay').onclick = ()=> render(currentKey);
+document.getElementById('btnShake').onclick  = ()=> artEl.classList.toggle('shake');
+document.getElementById('btnInvert').onclick = ()=> artEl.classList.toggle('invert');
+document.getElementById('btnFire').onclick   = ()=> { fireOn = !fireOn; };
+document.getElementById('btnSnow').onclick   = ()=> { snowOn = !snowOn; };
+document.getElementById('btnFireworks').onclick = ()=>{
+  for (let i=0;i<3;i++) setTimeout(()=> firework(Math.random()*W, Math.random()*H*0.6), i*250);
+};
+document.getElementById('btnClear').onclick = ()=>{
+  particles.length = 0;
+  mctx.clearRect(0,0,W,H);
+  fctx.clearRect(0,0,W,H);
+};
+
+/* ============== Interactions ============== */
+document.addEventListener('dblclick', e => firework(e.clientX, e.clientY));
+
+const keyMap = ['doge','cat','skull','heart','dragon','rocket','pika','matrix'];
+document.addEventListener('keydown', e=>{
+  if (e.code==='Space'){ e.preventDefault(); render(currentKey); }
+  else if (e.key==='f' || e.key==='F'){
+    for (let i=0;i<3;i++) setTimeout(()=>firework(Math.random()*W,Math.random()*H*.6),i*200);
   }
-
-  function launchWords() {
-    const words = ["WOW", "MUCH HTML", "VERY DOGE", "SUCH CODE", "SO LEGENDARY"];
-
-    setInterval(() => {
-      const word = document.createElement("div");
-      word.className = "floating-word";
-      word.textContent = words[Math.floor(Math.random() * words.length)];
-
-      word.style.left = Math.random() * 80 + 10 + "vw";
-      word.style.top = Math.random() * 70 + 15 + "vh";
-      word.style.fontSize = Math.random() * 22 + 20 + "px";
-
-      document.body.appendChild(word);
-
-      setTimeout(() => {
-        word.remove();
-      }, 2300);
-    }, 650);
+  else if (e.key==='s' || e.key==='S'){ snowOn=!snowOn; }
+  else if (e.key==='r' || e.key==='R'){ artEl.classList.toggle('shake'); }
+  else if (e.key==='i' || e.key==='I'){ artEl.classList.toggle('invert'); }
+  else if (/^[1-8]$/.test(e.key)){
+    const k = keyMap[parseInt(e.key,10)-1];
+    if (k){ patternSel.value = k; render(k); }
   }
+});
 
-  setTimeout(() => {
-    statusText.textContent = "characters locking...";
-  }, 1400);
-
-  setTimeout(() => {
-    statusText.textContent = "doge detected.";
-    typeDoge();
-  }, 2600);
+/* ============== Boot ============== */
+setTimeout(()=> statusEl.textContent = 'characters locking...', 800);
+setTimeout(()=> render('doge'), 1600);
 </script>
 
 </body>
